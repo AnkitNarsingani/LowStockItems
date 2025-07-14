@@ -1,3 +1,5 @@
+const accessToken = localStorage.getItem('accessToken');
+
 export const fetchItems = async () => {
 	const lowStockItems = await GetLowStockItems();
 	const pendingPOs = await GetPendingPurchaseOrders();
@@ -21,8 +23,6 @@ async function GetLowStockItems() {
 	let allItems = [];
 	let hasMore = true;
 	const per_page = 200;
-	const accessToken =
-		'1000.a6e6445cbc7e9f4433dbb41a9aa02109.4d5ae3d30dc6f28084a109e941aecff2';
 	const baseUrl =
 		'https://www.zohoapis.in/books/v3/items?organization_id=60013163918&filter_by=Status.Lowstock';
 
@@ -51,8 +51,6 @@ async function GetLowStockItems() {
 }
 
 async function GetPendingPurchaseOrders() {
-	const accessToken =
-		'1000.a6e6445cbc7e9f4433dbb41a9aa02109.4d5ae3d30dc6f28084a109e941aecff2';
 	const per_page = 200;
 	let allPOs = [];
 	let page = 1,
