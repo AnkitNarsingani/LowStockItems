@@ -34,7 +34,6 @@ async function GetLowStockItems() {
 				Authorization: `Zoho-oauthtoken ${accessToken}`,
 				'Content-Type': 'application/json',
 			},
-			credentials: 'omit',
 		});
 
 		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -63,7 +62,6 @@ async function GetPendingPurchaseOrders() {
 				Authorization: `Zoho-oauthtoken ${accessToken}`,
 				'Content-Type': 'application/json',
 			},
-			credentials: 'omit',
 		});
 		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
 		const data = await res.json();
@@ -79,7 +77,6 @@ async function GetPendingPurchaseOrders() {
 				Authorization: `Zoho-oauthtoken ${accessToken}`,
 				'Content-Type': 'application/json',
 			},
-			credentials: 'omit',
 		});
 		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
 		const data = await res.json();
