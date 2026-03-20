@@ -1,4 +1,4 @@
-const accessToken = localStorage.getItem('accessToken');
+const getAccessToken = () => localStorage.getItem('accessToken');
 
 export const fetchItems = async () => {
 	const lowStockItems = await GetLowStockItems();
@@ -12,10 +12,11 @@ export const fetchItems = async () => {
 	});
 
 	const filteredLowStock = lowStockItems.filter(
-		(item) => !pendingPOItemIds.has(item.item_id)
+		(item) => !pendingPOItemIds.has(item.item_id),
 	);
 
-	return filteredLowStock;
+	const enrichedItems = await enrichWithVendorNames(filteredLowStock);
+	return enrichedItems;
 };
 
 async function GetLowStockItems() {
@@ -31,8 +32,7 @@ async function GetLowStockItems() {
 		const url = `${baseUrl}&page=${page}&per_page=${per_page}`;
 		const res = await fetch(url, {
 			headers: {
-				Authorization: `Zoho-oauthtoken ${accessToken}`,
-				'Content-Type': 'application/json',
+				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
 			},
 		});
 
@@ -49,6 +49,45 @@ async function GetLowStockItems() {
 	return allItems;
 }
 
+async function enrichWithVendorNames(items) {
+	const concurrency = 5;
+	const enriched = [];
+
+	for (let i = 0; i < items.length; i += concurrency) {
+		const chunk = items.slice(i, i + concurrency);
+		const detailedChunk = await Promise.all(
+			chunk.map(async (item) => {
+				try {
+					const res = await fetch(
+						`https://www.zohoapis.in/books/v3/items/${item.item_id}?organization_id=60013163918`,
+						{
+							headers: {
+								Authorization: `Zoho-oauthtoken ${accessToken}`,
+							},
+						},
+					);
+					if (!res.ok) throw new Error(`Item fetch failed: ${res.statusText}`);
+					const data = await res.json();
+					const detailedItem = data.item;
+
+					return {
+						...item,
+						vendor_name: detailedItem.vendor_name || 'Unknown Vendor',
+						brand: detailedItem.brand || 'Unknown Brand',
+						manufacturer: detailedItem.manufacturer || 'Unknown Brand',
+					};
+				} catch (err) {
+					console.error('Failed to fetch item details:', err);
+					return { ...item, vendor_name: 'Unknown Vendor' };
+				}
+			}),
+		);
+		enriched.push(...detailedChunk);
+	}
+
+	return enriched;
+}
+
 async function GetPendingPurchaseOrders() {
 	const per_page = 200;
 	let allPOs = [];
@@ -59,8 +98,7 @@ async function GetPendingPurchaseOrders() {
 		const url = `https://www.zohoapis.in/books/v3/purchaseorders?organization_id=60013163918&filter_by=Status.Open&page=${page}&per_page=${per_page}`;
 		const res = await fetch(url, {
 			headers: {
-				Authorization: `Zoho-oauthtoken ${accessToken}`,
-				'Content-Type': 'application/json',
+				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
 			},
 		});
 		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -74,8 +112,7 @@ async function GetPendingPurchaseOrders() {
 		const url = `https://www.zohoapis.in/books/v3/purchaseorders/${poId}?organization_id=60013163918`;
 		const res = await fetch(url, {
 			headers: {
-				Authorization: `Zoho-oauthtoken ${accessToken}`,
-				'Content-Type': 'application/json',
+				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
 			},
 		});
 		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -88,7 +125,7 @@ async function GetPendingPurchaseOrders() {
 	for (let i = 0; i < allPOs.length; i += concurrency) {
 		const chunk = allPOs.slice(i, i + concurrency);
 		const chunkResults = await Promise.all(
-			chunk.map((po) => fetchPODetails(po.purchaseorder_id))
+			chunk.map((po) => fetchPODetails(po.purchaseorder_id)),
 		);
 		results = results.concat(chunkResults);
 	}

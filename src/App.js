@@ -4,7 +4,7 @@ import ZohoItemTable from './components/ZohoItemTable';
 
 // === AUTH CONSTANTS ===
 const ZOHO_CLIENT_ID = '1000.P3A9MPXVHA3M62ASDTE9B5CDBLITVW';
-const ZOHO_REDIRECT_URI = 'https://ankitnarsingani.github.io/LowStockItems/';
+const ZOHO_REDIRECT_URI = 'http://localhost:3000/LowStockItems';
 const ZOHO_SCOPE = 'ZohoBooks.fullaccess.all';
 const ZOHO_AUTH_URL = 'https://accounts.zoho.in/oauth/v2/auth';
 const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
