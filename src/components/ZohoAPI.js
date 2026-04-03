@@ -1,134 +1,90 @@
 const getAccessToken = () => localStorage.getItem('accessToken');
 
-export const fetchItems = async () => {
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function fetchWithRetry(url, options, retries = 3) {
+	for (let i = 0; i < retries; i++) {
+		const res = await fetch(url, options);
+
+		if (res.status !== 429) return res;
+
+		const waitTime = (i + 1) * 1000;
+		await delay(waitTime);
+	}
+
+	throw new Error('Max retries exceeded (429)');
+}
+
+// 🔥 MAIN FUNCTION (STREAMING ENABLED)
+export const fetchItems = async (onProgress) => {
 	const lowStockItems = await GetLowStockItems();
-	const pendingPOs = await GetPendingPurchaseOrders();
 
-	const pendingPOItemIds = new Set();
-	pendingPOs.forEach((po) => {
-		(po.line_items || []).forEach((li) => {
-			if (li.item_id) pendingPOItemIds.add(li.item_id);
-		});
-	});
+	let processed = [];
 
-	const filteredLowStock = lowStockItems.filter(
-		(item) => !pendingPOItemIds.has(item.item_id),
-	);
+	for (let i = 0; i < lowStockItems.length; i++) {
+		const enriched = await enrichSingleItem(lowStockItems[i]);
 
-	const enrichedItems = await enrichWithVendorNames(filteredLowStock);
-	return enrichedItems;
+		processed.push(enriched);
+
+		// 🔥 push incremental update
+		onProgress?.([...processed], lowStockItems.length);
+	}
+
+	return processed;
 };
 
 async function GetLowStockItems() {
 	let page = 1;
 	let allItems = [];
 	let hasMore = true;
-	const per_page = 200;
-	const baseUrl =
-		'https://www.zohoapis.in/books/v3/items?organization_id=60013163918&filter_by=Status.Lowstock';
+	const per_page = 100;
 
-	// Build query params string
+	const baseUrl =
+		'/zoho/books/v3/items?organization_id=60013163918&filter_by=Status.Lowstock';
+
 	while (hasMore) {
 		const url = `${baseUrl}&page=${page}&per_page=${per_page}`;
-		const res = await fetch(url, {
+
+		const res = await fetchWithRetry(url, {
 			headers: {
 				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
 			},
 		});
 
-		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
 		const data = await res.json();
 
-		if (!Array.isArray(data.items))
-			throw new Error('Unexpected response format');
-		allItems = allItems.concat(data.items);
-		hasMore = data.page_context && data.page_context.has_more_page;
-		page += 1;
+		allItems = allItems.concat(data.items || []);
+		hasMore = data.page_context?.has_more_page;
+		page++;
+
+		await delay(300);
 	}
 
 	return allItems;
 }
 
-async function enrichWithVendorNames(items) {
-	const concurrency = 5;
-	const enriched = [];
-
-	for (let i = 0; i < items.length; i += concurrency) {
-		const chunk = items.slice(i, i + concurrency);
-		const detailedChunk = await Promise.all(
-			chunk.map(async (item) => {
-				try {
-					const res = await fetch(
-						`https://www.zohoapis.in/books/v3/items/${item.item_id}?organization_id=60013163918`,
-						{
-							headers: {
-								Authorization: `Zoho-oauthtoken ${accessToken}`,
-							},
-						},
-					);
-					if (!res.ok) throw new Error(`Item fetch failed: ${res.statusText}`);
-					const data = await res.json();
-					const detailedItem = data.item;
-
-					return {
-						...item,
-						vendor_name: detailedItem.vendor_name || 'Unknown Vendor',
-						brand: detailedItem.brand || 'Unknown Brand',
-						manufacturer: detailedItem.manufacturer || 'Unknown Brand',
-					};
-				} catch (err) {
-					console.error('Failed to fetch item details:', err);
-					return { ...item, vendor_name: 'Unknown Vendor' };
-				}
-			}),
-		);
-		enriched.push(...detailedChunk);
-	}
-
-	return enriched;
-}
-
-async function GetPendingPurchaseOrders() {
-	const per_page = 200;
-	let allPOs = [];
-	let page = 1,
-		hasMore = true;
-
-	while (hasMore) {
-		const url = `https://www.zohoapis.in/books/v3/purchaseorders?organization_id=60013163918&filter_by=Status.Open&page=${page}&per_page=${per_page}`;
-		const res = await fetch(url, {
-			headers: {
-				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
+async function enrichSingleItem(item) {
+	try {
+		const res = await fetchWithRetry(
+			`/zoho/books/v3/items/${item.item_id}?organization_id=60013163918`,
+			{
+				headers: {
+					Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
+				},
 			},
-		});
-		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-		const data = await res.json();
-		allPOs = allPOs.concat(data.purchaseorders || []);
-		hasMore = data.page_context && data.page_context.has_more_page;
-		page += 1;
-	}
-
-	async function fetchPODetails(poId) {
-		const url = `https://www.zohoapis.in/books/v3/purchaseorders/${poId}?organization_id=60013163918`;
-		const res = await fetch(url, {
-			headers: {
-				Authorization: `Zoho-oauthtoken ${getAccessToken()}`,
-			},
-		});
-		if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-		const data = await res.json();
-		return data.purchaseorder;
-	}
-
-	const concurrency = 5; // Number of parallel requests at a time (tune as needed)
-	let results = [];
-	for (let i = 0; i < allPOs.length; i += concurrency) {
-		const chunk = allPOs.slice(i, i + concurrency);
-		const chunkResults = await Promise.all(
-			chunk.map((po) => fetchPODetails(po.purchaseorder_id)),
 		);
-		results = results.concat(chunkResults);
-	}
 
-	return results;
+		const data = await res.json();
+
+		await delay(300);
+
+		return {
+			...item,
+			vendor_name: data.item.vendor_name || 'Unknown Vendor',
+			brand: data.item.brand || 'Unknown Brand',
+			manufacturer: data.item.manufacturer || 'Unknown Manufacturer',
+		};
+	} catch {
+		return item;
+	}
 }

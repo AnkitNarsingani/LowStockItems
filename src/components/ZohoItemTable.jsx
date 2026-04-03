@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { fetchItems } from './ZohoAPI';
 import ItemRow from './ItemRow';
-import { logout } from '../App';
 
-// Constants
 const GROUP_BY_OPTIONS = {
 	VENDOR: 'vendor',
 	BRAND: 'brand',
@@ -11,265 +9,354 @@ const GROUP_BY_OPTIONS = {
 };
 
 const UNKNOWN_VALUES = {
-	[GROUP_BY_OPTIONS.VENDOR]: 'Unknown Vendor',
-	[GROUP_BY_OPTIONS.BRAND]: 'Unknown Brand',
-	[GROUP_BY_OPTIONS.MANUFACTURER]: 'Unknown Manufacturer',
+	vendor: 'Unknown Vendor',
+	brand: 'Unknown Brand',
+	manufacturer: 'Unknown Manufacturer',
 };
 
 export default function ZohoItemsTable() {
 	const [items, setItems] = useState([]);
-	const [expandedGroups, setExpandedGroups] = useState({});
 	const [groupBy, setGroupBy] = useState(GROUP_BY_OPTIONS.VENDOR);
+	const [search, setSearch] = useState('');
+	const [filterStatus, setFilterStatus] = useState('all');
 
-	const selectedItems = useMemo(
-		() => items.filter((item) => item.selected),
-		[items]
-	);
-
-	const allChecked = useMemo(
-		() => items.length > 0 && items.every((item) => item.selected),
-		[items]
-	);
+	const [loading, setLoading] = useState(true);
+	const [loadedCount, setLoadedCount] = useState(0);
+	const [totalCount, setTotalCount] = useState(0);
 
 	const getGroupKey = useCallback(
 		(item) => {
 			switch (groupBy) {
-				case GROUP_BY_OPTIONS.BRAND:
-					return item.brand || UNKNOWN_VALUES[GROUP_BY_OPTIONS.BRAND];
-				case GROUP_BY_OPTIONS.MANUFACTURER:
-					return (
-						item.manufacturer || UNKNOWN_VALUES[GROUP_BY_OPTIONS.MANUFACTURER]
-					);
+				case 'brand':
+					return item.brand || UNKNOWN_VALUES.brand;
+				case 'manufacturer':
+					return item.manufacturer || UNKNOWN_VALUES.manufacturer;
 				default:
-					return item.vendor_name || UNKNOWN_VALUES[GROUP_BY_OPTIONS.VENDOR];
+					return item.vendor_name || UNKNOWN_VALUES.vendor;
 			}
 		},
-		[groupBy]
+		[groupBy],
 	);
 
+	const getStatus = (item) => {
+		const oh = Number(item.stock_on_hand);
+		const max = Number(item.cf_maximum_capacity);
+		if (oh < 0 || oh === 0) return 'critical';
+		if (!isNaN(max) && oh < max * 0.3) return 'warning';
+		return 'ok';
+	};
+
+	const filteredItems = useMemo(() => {
+		const q = search.toLowerCase().trim();
+		return items.filter((item) => {
+			const matchSearch =
+				!q ||
+				(item.name || '').toLowerCase().includes(q) ||
+				(item.sku || '').toLowerCase().includes(q);
+			const s = getStatus(item);
+			const matchStatus = filterStatus === 'all' || s === filterStatus;
+			return matchSearch && matchStatus;
+		});
+	}, [items, search, filterStatus]);
+
 	const groupedItems = useMemo(() => {
-		return items.reduce((acc, item) => {
+		return filteredItems.reduce((acc, item) => {
 			const key = getGroupKey(item);
 			if (!acc[key]) acc[key] = [];
 			acc[key].push(item);
 			return acc;
 		}, {});
+	}, [filteredItems, getGroupKey]);
+
+	const metrics = useMemo(() => {
+		const critical = items.filter((i) => getStatus(i) === 'critical').length;
+		const negative = items.filter((i) => Number(i.stock_on_hand) < 0).length;
+		const vendors = new Set(items.map((i) => getGroupKey(i))).size;
+		return { total: items.length, critical, negative, vendors };
 	}, [items, getGroupKey]);
+
+	const progressPct = totalCount
+		? Math.round((loadedCount / totalCount) * 100)
+		: 0;
 
 	useEffect(() => {
 		const loadItems = async () => {
-			try {
-				const fetchedItems = await fetchItems();
-				setItems(fetchedItems);
-				const collapsed = {};
-				fetchedItems.forEach((item) => {
-					const groupKey = getGroupKey(item);
-					collapsed[groupKey] = false;
-				});
-				setExpandedGroups(collapsed);
-			} catch (error) {
-				console.error('Failed to load items:', error);
-			}
+			setLoading(true);
+			setItems([]);
+			setLoadedCount(0);
+			setTotalCount(0);
+
+			await fetchItems((partialItems, total) => {
+				setItems(partialItems);
+				setLoadedCount(partialItems.length);
+				setTotalCount(total);
+			});
+
+			setLoading(false);
 		};
+
 		loadItems();
-	}, [groupBy, getGroupKey]);
-
-	useEffect(() => {
-		Object.entries(groupedItems).forEach(([groupValue, groupItems]) => {
-			const input = document.getElementById(`group-checkbox-${groupValue}`);
-			if (input) {
-				const someSelected = groupItems.some((item) => item.selected);
-				const allSelected = groupItems.every((item) => item.selected);
-				input.indeterminate = someSelected && !allSelected;
-			}
-		});
-	}, [groupedItems]);
-
-	useEffect(() => {
-		const handleKeyDown = (e) => {
-			if (e.key === 'Escape') {
-				handleClearSelection();
-			}
-		};
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, []);
-
-	const toggleSelect = useCallback((id) => {
-		setItems((prev) =>
-			prev.map((item) =>
-				item.item_id === id ? { ...item, selected: !item.selected } : item
-			)
-		);
-	}, []);
-
-	const toggleSelectAll = useCallback((checked) => {
-		setItems((prev) => prev.map((item) => ({ ...item, selected: checked })));
-	}, []);
-
-	const toggleSelectGroup = useCallback(
-		(groupValue, checked) => {
-			setItems((prev) =>
-				prev.map((item) =>
-					getGroupKey(item) === groupValue
-						? { ...item, selected: checked }
-						: item
-				)
-			);
-		},
-		[getGroupKey]
-	);
-
-	const toggleGroupCollapse = useCallback((groupValue) => {
-		setExpandedGroups((prev) => ({
-			...prev,
-			[groupValue]: !prev[groupValue],
-		}));
-	}, []);
-
-	const handleLogout = useCallback(() => {
-		logout();
-	}, []);
-
-	const handleCreatePO = useCallback(() => {
-		alert(`${selectedItems.length} item(s) selected for Purchase Order`);
-	}, [selectedItems.length]);
-
-	const handleClearSelection = useCallback(() => {
-		setItems((prev) => prev.map((item) => ({ ...item, selected: false })));
-	}, []);
-
-	const handleGroupByChange = useCallback((e) => {
-		setGroupBy(e.target.value);
-	}, []);
-
-	const renderGroupRow = (groupValue, groupItems) => {
-		const isExpanded = expandedGroups[groupValue] ?? false;
-		const allGroupSelected = groupItems.every((item) => item.selected);
-		return (
-			<React.Fragment key={groupValue}>
-				<tr>
-					<td className="p-2 bg-gray-100 w-[40px] text-center">
-						<input
-							id={`group-checkbox-${groupValue}`}
-							type="checkbox"
-							checked={allGroupSelected}
-							onChange={(e) => toggleSelectGroup(groupValue, e.target.checked)}
-							onClick={(e) => e.stopPropagation()}
-							className="form-checkbox h-4 w-4 text-blue-600"
-							aria-label={`Select all items in ${groupValue}`}
-						/>
-					</td>
-					<td
-						colSpan={8}
-						className="p-2 bg-gray-100 text-left cursor-pointer select-none hover:bg-gray-200"
-						onClick={() => toggleGroupCollapse(groupValue)}>
-						<div className="flex items-center gap-2 font-medium text-gray-800">
-							<span className="text-lg" aria-hidden="true">
-								{isExpanded ? '▼' : '▶'}
-							</span>
-							<span>{groupValue}</span>
-						</div>
-					</td>
-				</tr>
-				{isExpanded &&
-					groupItems.map((item) => (
-						<ItemRow
-							key={item.item_id}
-							item={item}
-							toggleSelect={toggleSelect}
-						/>
-					))}
-			</React.Fragment>
-		);
-	};
+	}, [groupBy]);
 
 	return (
-		<div className="relative bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-			<div className="p-6 flex justify-between items-center border-b border-gray-100">
-				<h1 className="text-xl font-semibold text-gray-800">Low Stock Items</h1>
-				<div className="flex items-center gap-4">
+		<div className="flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden w-full h-full">
+			{/* ── TOOLBAR ── */}
+			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-wrap gap-2">
+				<div className="flex items-center gap-2">
+					<h1 className="text-sm font-medium text-gray-900">Low stock items</h1>
+					<span className="text-xs bg-gray-100 text-gray-500 border border-gray-200 rounded-full px-2 py-0.5">
+						{filteredItems.length} items
+					</span>
+				</div>
+
+				<div className="flex items-center gap-2 flex-wrap">
+					{/* Search */}
+					<div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+						<svg
+							className="w-3 h-3 text-gray-400 flex-shrink-0"
+							viewBox="0 0 16 16"
+							fill="none">
+							<circle
+								cx="6.5"
+								cy="6.5"
+								r="5"
+								stroke="currentColor"
+								strokeWidth="1.5"
+							/>
+							<path
+								d="M10.5 10.5L14 14"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+							/>
+						</svg>
+						<input
+							type="text"
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							placeholder="Search items…"
+							className="bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none w-32"
+						/>
+					</div>
+
+					{/* Group By */}
 					<div className="relative">
 						<select
 							value={groupBy}
-							onChange={handleGroupByChange}
-							className="border border-gray-300 px-4 py-2.5 rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none pr-10">
-							<option value={GROUP_BY_OPTIONS.VENDOR}>Group by Vendor</option>
-							<option value={GROUP_BY_OPTIONS.BRAND}>Group by Brand</option>
-							<option value={GROUP_BY_OPTIONS.MANUFACTURER}>
-								Group by Manufacturer
-							</option>
+							onChange={(e) => setGroupBy(e.target.value)}
+							className="text-xs border border-gray-200 rounded-lg pl-2.5 pr-6 py-1.5 bg-white text-gray-700 appearance-none cursor-pointer outline-none focus:ring-1 focus:ring-blue-200">
+							<option value="vendor">Vendor</option>
+							<option value="brand">Brand</option>
+							<option value="manufacturer">Manufacturer</option>
 						</select>
-						<div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-							<svg
-								className="w-4 h-4 text-gray-400"
-								fill="none"
+						<svg
+							className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+							viewBox="0 0 12 12"
+							fill="none">
+							<path
+								d="M2 4l4 4 4-4"
 								stroke="currentColor"
-								viewBox="0 0 24 24">
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M19 9l-7 7-7-7"
-								/>
-							</svg>
-						</div>
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
 					</div>
-					<button
-						onClick={handleLogout}
-						className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105">
-						Logout
-					</button>
+
+					{/* Status Filter */}
+					<div className="relative">
+						<select
+							value={filterStatus}
+							onChange={(e) => setFilterStatus(e.target.value)}
+							className="text-xs border border-gray-200 rounded-lg pl-2.5 pr-6 py-1.5 bg-white text-gray-700 appearance-none cursor-pointer outline-none focus:ring-1 focus:ring-blue-200">
+							<option value="all">All status</option>
+							<option value="critical">Critical</option>
+							<option value="warning">Warning</option>
+						</select>
+						<svg
+							className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+							viewBox="0 0 12 12"
+							fill="none">
+							<path
+								d="M2 4l4 4 4-4"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+					</div>
 				</div>
 			</div>
-			{selectedItems.length > 0 && (
-				<div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-300 shadow px-4 py-2 text-sm flex items-center justify-between">
-					<button
-						onClick={handleCreatePO}
-						className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">
-						Create Purchase Order
-					</button>
-					<div className="absolute left-1/2 transform -translate-x-1/2 text-gray-700 font-medium text-sm">
-						{selectedItems.length} Selected
-					</div>
-					<button
-						onClick={handleClearSelection}
-						className="text-gray-400 hover:text-gray-600 text-lg leading-none">
-						&#x2715; <span className="text-sm ml-1">Esc</span>
-					</button>
+
+			{/* ── METRIC CARDS ── */}
+			<div className="grid grid-cols-4 gap-2.5 px-4 py-3 border-b border-gray-100">
+				<MetricCard label="Total SKUs" value={metrics.total} color="default" />
+				<MetricCard
+					label="Critical stock"
+					value={metrics.critical}
+					color="red"
+				/>
+				<MetricCard
+					label="Negative on-hand"
+					value={metrics.negative}
+					color="red"
+				/>
+				<MetricCard
+					label={
+						groupBy === 'vendor'
+							? 'Vendors'
+							: groupBy === 'brand'
+								? 'Brands'
+								: 'Manufacturers'
+					}
+					value={metrics.vendors}
+					color="green"
+				/>
+			</div>
+
+			{/* ── PROGRESS BAR ── */}
+			<div
+				className="px-4 py-2.5 border-b border-gray-100 transition-opacity duration-500"
+				style={{ opacity: loading ? 1 : 0.45 }}>
+				<div className="flex justify-between items-center mb-1.5">
+					<span className="text-xs text-gray-500">
+						{loading ? 'Loading inventory…' : 'Fully loaded'}
+					</span>
+					<span className="text-xs font-medium text-gray-700 tabular-nums">
+						{loadedCount.toLocaleString()} / {totalCount.toLocaleString()} items
+						loaded
+					</span>
 				</div>
-			)}
-			<div className="overflow-x-auto">
-				<table className="min-w-full table-fixed border-collapse text-sm text-gray-700">
-					<thead className="bg-gray-50">
-						<tr>
-							<th className="p-2 w-10">
+				<div className="w-full h-0.5 bg-gray-100 rounded-full overflow-hidden">
+					<div
+						className="h-full bg-blue-500 rounded-full transition-all duration-200"
+						style={{ width: `${progressPct}%` }}
+					/>
+				</div>
+			</div>
+
+			{/* ── TABLE ── */}
+			<div className="overflow-auto flex-1">
+				<table className="w-full text-xs">
+					<thead>
+						<tr className="sticky top-0 z-10 bg-white border-b border-gray-100">
+							<th className="w-9 p-2 text-center">
 								<input
-									id="select-all"
 									type="checkbox"
-									checked={allChecked}
-									onChange={(e) => toggleSelectAll(e.target.checked)}
-									className="form-checkbox h-4 w-4 text-blue-600"
-									aria-label="Select All"
+									className="form-checkbox h-3.5 w-3.5 text-blue-500 rounded"
 								/>
 							</th>
-							<th className="p-2 text-left">Item Name</th>
-							<th className="p-2 text-left">SKU</th>
-							<th className="p-2 text-right">Rate</th>
-							<th className="p-2 text-left">Unit</th>
-							<th className="p-2 text-left">HSN/SAC</th>
-							<th className="p-2 text-right">Max Capacity</th>
-							<th className="p-2 text-right">Stock on Hand</th>
-							<th className="p-2 text-right">Raw Qty Order</th>
+							<th className="p-2 text-left font-medium text-gray-500 w-48">
+								Item name
+							</th>
+							<th className="p-2 text-left font-medium text-gray-500 w-28">
+								SKU
+							</th>
+							<th className="p-2 text-right font-medium text-gray-500 w-24">
+								Rate
+							</th>
+							<th className="p-2 text-left font-medium text-gray-500 w-16">
+								Unit
+							</th>
+							<th className="p-2 text-left font-medium text-gray-500 w-24">
+								HSN / SAC
+							</th>
+							<th className="p-2 text-right font-medium text-gray-500 w-24">
+								Max cap.
+							</th>
+							<th className="p-2 text-right font-medium text-gray-500 w-24">
+								On hand
+							</th>
+							<th className="p-2 text-right font-medium text-gray-500 w-28">
+								To order
+							</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-gray-100">
-						{Object.entries(groupedItems).map(([groupValue, groupItems]) =>
-							renderGroupRow(groupValue, groupItems)
+
+					<tbody>
+						{Object.entries(groupedItems).map(([group, groupItems]) => (
+							<React.Fragment key={group}>
+								{/* Vendor group header */}
+								<tr className="bg-gray-50 border-t border-b border-gray-100">
+									<td
+										colSpan={9}
+										className="px-3 py-1.5 text-xs font-medium text-gray-500 tracking-wide">
+										{group}
+										<span className="ml-2 font-normal opacity-60">
+											{groupItems.length} item
+											{groupItems.length !== 1 ? 's' : ''}
+										</span>
+									</td>
+								</tr>
+
+								{groupItems.map((item) => (
+									<ItemRow key={item.item_id} item={item} />
+								))}
+							</React.Fragment>
+						))}
+
+						{/* Loading skeleton rows */}
+						{loading && items.length === 0 && (
+							<>
+								{[80, 65, 72, 55, 88].map((w, i) => (
+									<tr key={i} className="border-b border-gray-50">
+										<td colSpan={9} className="px-3 py-2.5">
+											<div
+												className="h-3 rounded bg-gray-100 animate-pulse"
+												style={{ width: `${w}%` }}
+											/>
+										</td>
+									</tr>
+								))}
+							</>
+						)}
+
+						{/* Inline streaming row */}
+						{loading && items.length > 0 && (
+							<tr className="border-t border-dashed border-gray-100">
+								<td
+									colSpan={9}
+									className="px-3 py-2 text-center text-xs text-gray-400">
+									<span className="inline-flex items-center gap-1.5">
+										<span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+										Fetching more items…
+									</span>
+								</td>
+							</tr>
+						)}
+
+						{/* Empty state */}
+						{!loading && filteredItems.length === 0 && (
+							<tr>
+								<td
+									colSpan={9}
+									className="py-10 text-center text-xs text-gray-400">
+									No items match your filters
+								</td>
+							</tr>
 						)}
 					</tbody>
 				</table>
 			</div>
+		</div>
+	);
+}
+
+function MetricCard({ label, value, color }) {
+	const valColor =
+		color === 'red'
+			? 'text-red-500'
+			: color === 'green'
+				? 'text-green-700'
+				: 'text-gray-900';
+
+	return (
+		<div className="bg-gray-50 rounded-lg px-3 py-2.5">
+			<p className="text-xs text-gray-500 mb-1">{label}</p>
+			<p className={`text-xl font-medium tabular-nums ${valColor}`}>
+				{value ?? '—'}
+			</p>
 		</div>
 	);
 }
