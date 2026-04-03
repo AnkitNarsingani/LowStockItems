@@ -24,7 +24,11 @@ export default function ItemRow({ item, toggleSelect }) {
 				: 'text-gray-500';
 
 	const toOrderContent =
-		rawQtyOrder !== null && rawQtyOrder > 0 ? (
+		rawQtyOrder === null ? null : rawQtyOrder === 0 ? (
+			<span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 font-medium">
+				0
+			</span>
+		) : (
 			<span
 				className={
 					status === 'critical'
@@ -33,8 +37,6 @@ export default function ItemRow({ item, toggleSelect }) {
 				}>
 				{rawQtyOrder}
 			</span>
-		) : (
-			<span className="text-gray-400">{rawQtyOrder ?? ''}</span>
 		);
 
 	return (
@@ -75,7 +77,8 @@ export default function ItemRow({ item, toggleSelect }) {
 
 			{/* Rate */}
 			<td className="p-2 text-right w-24 tabular-nums text-xs text-gray-700">
-				{item.currency_code}{' '}
+				{item.currency_code}
+				{'₹'}
 				{typeof item.rate === 'number'
 					? item.rate.toLocaleString('en-IN', {
 							minimumFractionDigits: 2,

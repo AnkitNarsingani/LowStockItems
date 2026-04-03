@@ -1,6 +1,14 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, {
+	useEffect,
+	useState,
+	useCallback,
+	useMemo,
+	useRef,
+} from 'react';
 import { fetchItems } from './ZohoAPI';
+import { logout } from '../App';
 import ItemRow from './ItemRow';
+import './ItemRow.css';
 
 const GROUP_BY_OPTIONS = {
 	VENDOR: 'vendor',
@@ -18,11 +26,15 @@ export default function ZohoItemsTable() {
 	const [items, setItems] = useState([]);
 	const [groupBy, setGroupBy] = useState(GROUP_BY_OPTIONS.VENDOR);
 	const [search, setSearch] = useState('');
-	const [filterStatus, setFilterStatus] = useState('all');
+
+	const [expandedGroups, setExpandedGroups] = useState(new Set());
 
 	const [loading, setLoading] = useState(true);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [totalCount, setTotalCount] = useState(0);
+
+	// CHANGE 4: single cache — fetch once, reuse on every groupBy switch
+	const itemCacheRef = useRef(null);
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -38,26 +50,16 @@ export default function ZohoItemsTable() {
 		[groupBy],
 	);
 
-	const getStatus = (item) => {
-		const oh = Number(item.stock_on_hand);
-		const max = Number(item.cf_maximum_capacity);
-		if (oh < 0 || oh === 0) return 'critical';
-		if (!isNaN(max) && oh < max * 0.3) return 'warning';
-		return 'ok';
-	};
 
 	const filteredItems = useMemo(() => {
 		const q = search.toLowerCase().trim();
-		return items.filter((item) => {
-			const matchSearch =
+		return items.filter(
+			(item) =>
 				!q ||
 				(item.name || '').toLowerCase().includes(q) ||
-				(item.sku || '').toLowerCase().includes(q);
-			const s = getStatus(item);
-			const matchStatus = filterStatus === 'all' || s === filterStatus;
-			return matchSearch && matchStatus;
-		});
-	}, [items, search, filterStatus]);
+				(item.sku || '').toLowerCase().includes(q),
+		);
+	}, [items, search]);
 
 	const groupedItems = useMemo(() => {
 		return filteredItems.reduce((acc, item) => {
@@ -69,38 +71,63 @@ export default function ZohoItemsTable() {
 	}, [filteredItems, getGroupKey]);
 
 	const metrics = useMemo(() => {
-		const critical = items.filter((i) => getStatus(i) === 'critical').length;
-		const negative = items.filter((i) => Number(i.stock_on_hand) < 0).length;
-		const vendors = new Set(items.map((i) => getGroupKey(i))).size;
-		return { total: items.length, critical, negative, vendors };
+		const groups = new Set(items.map((i) => getGroupKey(i))).size;
+		return { total: items.length, groups };
 	}, [items, getGroupKey]);
 
-	const progressPct = totalCount
-		? Math.round((loadedCount / totalCount) * 100)
-		: 0;
+	const toggleGroup = useCallback((group) => {
+		setExpandedGroups((prev) => {
+			const next = new Set(prev);
+			next.has(group) ? next.delete(group) : next.add(group);
+			return next;
+		});
+	}, []);
 
+	// CHANGE 4: empty dependency array — groupBy changes never trigger a fetch
 	useEffect(() => {
 		const loadItems = async () => {
+			if (itemCacheRef.current) {
+				setItems(itemCacheRef.current.items);
+				setLoadedCount(itemCacheRef.current.total);
+				setTotalCount(itemCacheRef.current.total);
+				setLoading(false);
+				return;
+			}
+
 			setLoading(true);
 			setItems([]);
 			setLoadedCount(0);
 			setTotalCount(0);
 
+			let lastTotal = 0;
 			await fetchItems((partialItems, total) => {
 				setItems(partialItems);
 				setLoadedCount(partialItems.length);
 				setTotalCount(total);
+				lastTotal = total;
+			});
+
+			setItems((final) => {
+				itemCacheRef.current = { items: final, total: lastTotal };
+				return final;
 			});
 
 			setLoading(false);
 		};
 
 		loadItems();
-	}, [groupBy]);
+	}, []);
+
+	const groupByLabel =
+		groupBy === 'brand'
+			? 'Brands'
+			: groupBy === 'manufacturer'
+				? 'Manufacturers'
+				: 'Vendors';
 
 	return (
 		<div className="flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden w-full h-full">
-			{/* ── TOOLBAR ── */}
+			{/* TOOLBAR */}
 			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-wrap gap-2">
 				<div className="flex items-center gap-2">
 					<h1 className="text-sm font-medium text-gray-900">Low stock items</h1>
@@ -110,7 +137,6 @@ export default function ZohoItemsTable() {
 				</div>
 
 				<div className="flex items-center gap-2 flex-wrap">
-					{/* Search */}
 					<div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
 						<svg
 							className="w-3 h-3 text-gray-400 flex-shrink-0"
@@ -139,104 +165,56 @@ export default function ZohoItemsTable() {
 						/>
 					</div>
 
-					{/* Group By */}
 					<div className="relative">
 						<select
 							value={groupBy}
-							onChange={(e) => setGroupBy(e.target.value)}
+							onChange={(e) => {
+								setGroupBy(e.target.value);
+								setExpandedGroups(new Set());
+							}}
 							className="text-xs border border-gray-200 rounded-lg pl-2.5 pr-6 py-1.5 bg-white text-gray-700 appearance-none cursor-pointer outline-none focus:ring-1 focus:ring-blue-200">
 							<option value="vendor">Vendor</option>
 							<option value="brand">Brand</option>
 							<option value="manufacturer">Manufacturer</option>
 						</select>
-						<svg
-							className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-							viewBox="0 0 12 12"
-							fill="none">
-							<path
-								d="M2 4l4 4 4-4"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							/>
-						</svg>
+						<ChevronIcon />
 					</div>
 
-					{/* Status Filter */}
-					<div className="relative">
-						<select
-							value={filterStatus}
-							onChange={(e) => setFilterStatus(e.target.value)}
-							className="text-xs border border-gray-200 rounded-lg pl-2.5 pr-6 py-1.5 bg-white text-gray-700 appearance-none cursor-pointer outline-none focus:ring-1 focus:ring-blue-200">
-							<option value="all">All status</option>
-							<option value="critical">Critical</option>
-							<option value="warning">Warning</option>
-						</select>
-						<svg
-							className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-							viewBox="0 0 12 12"
-							fill="none">
-							<path
-								d="M2 4l4 4 4-4"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							/>
-						</svg>
-					</div>
+					<button
+						onClick={logout}
+						className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 cursor-pointer outline-none hover:bg-gray-50">
+						Logout
+					</button>
 				</div>
 			</div>
 
-			{/* ── METRIC CARDS ── */}
-			<div className="grid grid-cols-4 gap-2.5 px-4 py-3 border-b border-gray-100">
+			{/* METRIC CARDS */}
+			<div className="grid grid-cols-2 gap-2.5 px-4 py-3 border-b border-gray-100">
 				<MetricCard label="Total SKUs" value={metrics.total} color="default" />
-				<MetricCard
-					label="Critical stock"
-					value={metrics.critical}
-					color="red"
-				/>
-				<MetricCard
-					label="Negative on-hand"
-					value={metrics.negative}
-					color="red"
-				/>
-				<MetricCard
-					label={
-						groupBy === 'vendor'
-							? 'Vendors'
-							: groupBy === 'brand'
-								? 'Brands'
-								: 'Manufacturers'
-					}
-					value={metrics.vendors}
-					color="green"
-				/>
+
+				<MetricCard label={groupByLabel} value={metrics.groups} color="green" />
 			</div>
 
-			{/* ── PROGRESS BAR ── */}
-			<div
-				className="px-4 py-2.5 border-b border-gray-100 transition-opacity duration-500"
-				style={{ opacity: loading ? 1 : 0.45 }}>
-				<div className="flex justify-between items-center mb-1.5">
-					<span className="text-xs text-gray-500">
-						{loading ? 'Loading inventory…' : 'Fully loaded'}
-					</span>
-					<span className="text-xs font-medium text-gray-700 tabular-nums">
-						{loadedCount.toLocaleString()} / {totalCount.toLocaleString()} items
-						loaded
-					</span>
+			{/* CHANGE 1 + 3: bar only renders while loading; uses bouncing CSS animation */}
+			{loading && (
+				<div className="px-4 py-2.5 border-b border-gray-100">
+					<div className="flex justify-between items-center mb-1.5">
+						<span className="text-xs text-gray-500">Loading inventory…</span>
+						<span className="text-xs font-medium text-gray-700 tabular-nums">
+							{loadedCount.toLocaleString()} / {totalCount.toLocaleString()}{' '}
+							items loaded
+						</span>
+					</div>
+					<div className="relative w-full h-0.5 bg-gray-100 rounded-full overflow-hidden">
+						<div
+							className="progress-bounce absolute h-full bg-blue-500 rounded-full"
+							style={{ width: '35%' }}
+						/>
+					</div>
 				</div>
-				<div className="w-full h-0.5 bg-gray-100 rounded-full overflow-hidden">
-					<div
-						className="h-full bg-blue-500 rounded-full transition-all duration-200"
-						style={{ width: `${progressPct}%` }}
-					/>
-				</div>
-			</div>
+			)}
 
-			{/* ── TABLE ── */}
+			{/* TABLE */}
 			<div className="overflow-auto flex-1">
 				<table className="w-full text-xs">
 					<thead>
@@ -275,28 +253,52 @@ export default function ZohoItemsTable() {
 					</thead>
 
 					<tbody>
-						{Object.entries(groupedItems).map(([group, groupItems]) => (
-							<React.Fragment key={group}>
-								{/* Vendor group header */}
-								<tr className="bg-gray-50 border-t border-b border-gray-100">
-									<td
-										colSpan={9}
-										className="px-3 py-1.5 text-xs font-medium text-gray-500 tracking-wide">
-										{group}
-										<span className="ml-2 font-normal opacity-60">
-											{groupItems.length} item
-											{groupItems.length !== 1 ? 's' : ''}
-										</span>
-									</td>
-								</tr>
+						{Object.entries(groupedItems).map(([group, groupItems]) => {
+							const isCollapsed = !expandedGroups.has(group);
+							return (
+								<React.Fragment key={group}>
+									{/* CHANGE 2: clickable collapsible group header */}
+									<tr
+										className="bg-gray-50 border-t border-b border-gray-100 cursor-pointer select-none hover:bg-gray-100 transition-colors"
+										onClick={() => toggleGroup(group)}>
+										<td colSpan={9} className="px-3 py-1.5">
+											<div className="flex items-center gap-1.5">
+												<svg
+													className="w-3 h-3 text-gray-400 flex-shrink-0 transition-transform duration-150"
+													style={{
+														transform: isCollapsed
+															? 'rotate(-90deg)'
+															: 'rotate(0deg)',
+													}}
+													viewBox="0 0 12 12"
+													fill="none">
+													<path
+														d="M2 4l4 4 4-4"
+														stroke="currentColor"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
+												<span className="text-xs font-medium text-gray-500 tracking-wide">
+													{group}
+												</span>
+												<span className="text-xs font-normal text-gray-400 ml-0.5">
+													{groupItems.length} item
+													{groupItems.length !== 1 ? 's' : ''}
+												</span>
+											</div>
+										</td>
+									</tr>
 
-								{groupItems.map((item) => (
-									<ItemRow key={item.item_id} item={item} />
-								))}
-							</React.Fragment>
-						))}
+									{!isCollapsed &&
+										groupItems.map((item) => (
+											<ItemRow key={item.item_id} item={item} />
+										))}
+								</React.Fragment>
+							);
+						})}
 
-						{/* Loading skeleton rows */}
 						{loading && items.length === 0 && (
 							<>
 								{[80, 65, 72, 55, 88].map((w, i) => (
@@ -312,7 +314,6 @@ export default function ZohoItemsTable() {
 							</>
 						)}
 
-						{/* Inline streaming row */}
 						{loading && items.length > 0 && (
 							<tr className="border-t border-dashed border-gray-100">
 								<td
@@ -326,7 +327,6 @@ export default function ZohoItemsTable() {
 							</tr>
 						)}
 
-						{/* Empty state */}
 						{!loading && filteredItems.length === 0 && (
 							<tr>
 								<td
@@ -350,7 +350,6 @@ function MetricCard({ label, value, color }) {
 			: color === 'green'
 				? 'text-green-700'
 				: 'text-gray-900';
-
 	return (
 		<div className="bg-gray-50 rounded-lg px-3 py-2.5">
 			<p className="text-xs text-gray-500 mb-1">{label}</p>
@@ -358,5 +357,22 @@ function MetricCard({ label, value, color }) {
 				{value ?? '—'}
 			</p>
 		</div>
+	);
+}
+
+function ChevronIcon() {
+	return (
+		<svg
+			className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+			viewBox="0 0 12 12"
+			fill="none">
+			<path
+				d="M2 4l4 4 4-4"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
 	);
 }

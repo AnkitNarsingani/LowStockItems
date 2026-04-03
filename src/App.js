@@ -3,8 +3,8 @@ import './App.css';
 import ZohoItemTable from './components/ZohoItemTable';
 
 // === AUTH CONSTANTS ===
-const ZOHO_CLIENT_ID = '1000.P3A9MPXVHA3M62ASDTE9B5CDBLITVW';
-const ZOHO_REDIRECT_URI = 'http://localhost:3000/LowStockItems';
+const ZOHO_CLIENT_ID = process.env.REACT_APP_ZOHO_CLIENT_ID;
+const ZOHO_REDIRECT_URI = process.env.REACT_APP_ZOHO_REDIRECT_URI;
 const ZOHO_SCOPE = 'ZohoBooks.fullaccess.all';
 const ZOHO_AUTH_URL = 'https://accounts.zoho.in/oauth/v2/auth';
 const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -12,7 +12,7 @@ const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // === UTILITY FUNCTIONS ===
 const getZohoLoginUrl = (prompt = 'consent') => {
 	return `${ZOHO_AUTH_URL}?scope=${ZOHO_SCOPE}&client_id=${ZOHO_CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(
-		ZOHO_REDIRECT_URI
+		ZOHO_REDIRECT_URI,
 	)}&access_type=offline&prompt=${prompt}`;
 };
 
@@ -74,7 +74,7 @@ function App() {
 				setIsAuthenticated(true);
 				// Clean up URL
 				window.location.replace(
-					window.location.pathname + window.location.search
+					window.location.pathname + window.location.search,
 				);
 				return true;
 			}
@@ -118,11 +118,6 @@ function App() {
 		window.location.assign(getZohoLoginUrl('consent'));
 	};
 
-	const handleLogout = () => {
-		clearTokens();
-		setIsAuthenticated(false);
-		window.location.assign(ZOHO_REDIRECT_URI);
-	};
 
 	return (
 		<div className="App">

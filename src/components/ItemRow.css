@@ -12,3 +12,20 @@
 .item-row {
 	animation: rowFadeIn 0.18s ease forwards;
 }
+
+/* CHANGE 3: bouncing back-and-forth indeterminate bar */
+@keyframes progressBounce {
+	0% {
+		left: -35%;
+	}
+	50% {
+		left: 100%;
+	}
+	100% {
+		left: -35%;
+	}
+}
+
+.progress-bounce {
+	animation: progressBounce 1.6s ease-in-out infinite;
+}
