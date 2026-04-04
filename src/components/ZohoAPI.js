@@ -453,13 +453,6 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 		if (discountAccountId) body.discount_account_id = discountAccountId;
 	}
 
-	// Round off — Zoho Books applies it as a named adjustment line
-	if (roundOff) {
-		body.adjustment_description = 'Round Off';
-		// Actual value is 0; Zoho recalculates it when the PO is opened
-		body.adjustment = 0;
-	}
-
 	console.log('[createPO] payload →', JSON.stringify(body, null, 2));
 
 	const url = `${BASE_PROXY}/purchaseorders?organization_id=${ORG_ID}`;
@@ -475,7 +468,31 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	if (data.code !== 0) {
 		throw new Error(data.message || 'Failed to create purchase order');
 	}
-	return data.purchaseorder;
+
+	const po = data.purchaseorder;
+
+	// Round off — fetch the real total from the created PO, compute the exact adjustment,
+	// then PUT the PO back so the value is precise (not just 0).
+	if (roundOff && po?.purchaseorder_id && po?.total != null) {
+		const total = Number(po.total);
+		const adjustment = parseFloat((Math.round(total) - total).toFixed(2));
+		console.log('[createPO] round-off: total', total, '→ adjustment', adjustment);
+		if (adjustment !== 0) {
+			const putBody = { ...body, adjustment, adjustment_description: 'Round Off' };
+			const putUrl = `${BASE_PROXY}/purchaseorders/${po.purchaseorder_id}?organization_id=${ORG_ID}`;
+			const putRes = await fetchWithRetry(putUrl, {
+				method: 'PUT',
+				headers: { ...authHeaders(), 'content-type': 'application/json' },
+				body: JSON.stringify(putBody),
+			});
+			const putData = await putRes.json();
+			console.log('[createPO] round-off PUT →', putData.code, putData.message);
+			// Return the updated PO if available, otherwise fall back to the created one
+			if (putData.code === 0 && putData.purchaseorder) return putData.purchaseorder;
+		}
+	}
+
+	return po;
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
