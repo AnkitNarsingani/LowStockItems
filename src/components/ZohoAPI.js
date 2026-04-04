@@ -94,12 +94,8 @@ async function enrichSingleItem(item) {
 
 		const d = data.item;
 
-		const taxId =
-			d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')?.tax_id ||
-			d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')?.tax_id ||
-			d.tax_id ||
-			d.purchase_tax_id ||
-			null;
+		const taxIdInter = d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')?.tax_id || null;
+		const taxIdIntra = d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')?.tax_id || null;
 
 		return {
 			...item,
@@ -110,7 +106,10 @@ async function enrichSingleItem(item) {
 			// PO rate — use purchase rate, fall back to selling rate
 			purchase_rate: d.purchase_rate || d.rate || 0,
 			purchase_account_id: d.purchase_account_id || null,
-			tax_id: taxId,
+			// Store both intra and inter tax IDs — chosen at PO creation time
+			tax_id_intra: taxIdIntra,
+			tax_id_inter: taxIdInter,
+			tax_id: d.tax_id || d.purchase_tax_id || taxIdIntra || taxIdInter || null,
 			// Quantity fields matching the 'Populate Qty' Deluge script
 			available_stock: d.available_stock ?? d.stock_on_hand ?? 0,
 			reorder_level: d.reorder_level ?? null,
@@ -287,6 +286,32 @@ async function getVendorDetails(vendorId) {
 	return data.contact || {};
 }
 
+// ─── ORG STATE: cached fetch of the organisation's state ─────────────────────
+
+let _orgState = null;
+let _orgStateFetched = false;
+
+async function getOrgState() {
+	if (_orgStateFetched) return _orgState;
+	try {
+		const res = await fetchWithRetry(
+			`${BASE_PROXY}/organizations?organization_id=${ORG_ID}`,
+			{ headers: authHeaders() },
+		);
+		const data = await res.json();
+		// Filter by ORG_ID to ensure we pick the right org when the token has access to multiple orgs
+		const org = data.organizations?.find((o) => String(o.organization_id) === String(ORG_ID))
+			|| data.organizations?.[0];
+		console.log('[getOrgState] matched org →', org?.organization_id, org?.name, '| state_code →', org?.state_code);
+		_orgState = { name: org?.state?.toLowerCase().trim() || null, code: org?.state_code?.toLowerCase().trim() || null };
+	} catch (e) {
+		console.error('[getOrgState] error →', e);
+		_orgState = null;
+	}
+	_orgStateFetched = true;
+	return _orgState;
+}
+
 // ─── VENDORS: fetch all vendors ───────────────────────────────────────────────
 
 export async function getVendors() {
@@ -314,7 +339,18 @@ export async function getVendors() {
 // bundleSize = 0 → simple: qty = max_capacity - available_stock
 
 export async function createPurchaseOrder(vendorId, items, bundleSize = 0, populateRate = false) {
-	const vendor = await getVendorDetails(vendorId);
+	const [vendor, orgState] = await Promise.all([getVendorDetails(vendorId), getOrgState()]);
+
+	// Compare org state_code vs vendor's place_of_contact (state code) for GST determination
+	// place_of_contact is the authoritative GST field on Indian vendor contacts (e.g. "TS", "TN")
+	const vendorStateCode = vendor.place_of_contact?.toLowerCase().trim() || null;
+	const orgStateCode = orgState?.code?.toLowerCase().trim() || null;
+	console.log('[createPO] orgStateCode →', orgStateCode, '| vendorStateCode →', vendorStateCode);
+	const isInterstate =
+		vendorStateCode && orgStateCode
+			? vendorStateCode !== orgStateCode
+			: true; // default to interstate (IGST) if state info is unavailable
+	console.log('[createPO] isInterstate →', isInterstate);
 
 	// Bundle mode needs sales data per item — calculate before building line items
 	let qtyMap = null;
@@ -363,7 +399,11 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 		if (item.unit) line.unit = item.unit;
 		if (item.hsn_or_sac) line.hsn_or_sac = item.hsn_or_sac;
 		if (item.purchase_account_id) line.account_id = item.purchase_account_id;
-		if (item.tax_id) line.tax_id = item.tax_id;
+
+		const taxId = isInterstate
+			? (item.tax_id_inter || item.tax_id)
+			: (item.tax_id_intra || item.tax_id);
+		if (taxId) line.tax_id = taxId;
 
 		return [line];
 	});
@@ -375,7 +415,9 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	if (vendor.currency_id) body.currency_id = vendor.currency_id;
 	if (vendor.gst_treatment) body.gst_treatment = vendor.gst_treatment;
 	if (vendor.gst_no) body.gst_no = vendor.gst_no;
-	if (vendor.source_of_supply) body.source_of_supply = vendor.source_of_supply;
+	// place_of_contact is the GST-authoritative state field; source_of_supply is a fallback
+	const supplyState = vendor.place_of_contact || vendor.source_of_supply;
+	if (supplyState) body.source_of_supply = supplyState;
 
 	console.log('[createPO] payload →', JSON.stringify(body, null, 2));
 

@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { getVendors } from './ZohoAPI';
 
-export default function VendorSelectModal({ selectedItems, onClose, onConfirm, creating }) {
+export default function VendorSelectModal({
+	selectedItems,
+	onClose,
+	onConfirm,
+	creating,
+}) {
 	const [vendors, setVendors] = useState([]);
 	const [vendorsLoading, setVendorsLoading] = useState(true);
 	const [vendorError, setVendorError] = useState(null);
@@ -175,7 +180,8 @@ function SearchableVendorSelect({ vendors, loading, value, onChange }) {
 			<div
 				onClick={handleOpen}
 				className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 bg-white cursor-pointer hover:border-blue-300 transition-colors select-none">
-				<span className={`text-xs ${selectedVendor ? 'text-gray-800' : 'text-gray-400'}`}>
+				<span
+					className={`text-xs ${selectedVendor ? 'text-gray-800' : 'text-gray-400'}`}>
 					{loading
 						? 'Loading vendors…'
 						: selectedVendor
