@@ -58,6 +58,9 @@ export default function CreatePOModal({ selectedCount, selectedItems, onClose, o
 	const [mode, setMode] = useState('simple');
 	const [bundleSize, setBundleSize] = useState('');
 	const [populateRate, setPopulateRate] = useState(false);
+	const [discount, setDiscount] = useState('');
+	const [discountType, setDiscountType] = useState('%');
+	const [roundOff, setRoundOff] = useState(true);
 
 	useEffect(() => {
 		const prev = document.body.style.overflow;
@@ -79,7 +82,13 @@ export default function CreatePOModal({ selectedCount, selectedItems, onClose, o
 
 	const handleConfirm = () => {
 		if (!isValid) return;
-		onConfirm({ bundleSize: mode === 'bundle' ? Number(bundleSize) : 0, populateRate });
+		onConfirm({
+			bundleSize: mode === 'bundle' ? Number(bundleSize) : 0,
+			populateRate,
+			discount: discount !== '' ? Number(discount) : 0,
+			discountType,
+			roundOff,
+		});
 	};
 
 	const spin = (dir) =>
@@ -152,6 +161,31 @@ export default function CreatePOModal({ selectedCount, selectedItems, onClose, o
 					background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2);
 					transition:transform .2s cubic-bezier(.34,1.56,.64,1);
 				}
+				.cpo-discount-row {
+					display:flex; align-items:center; justify-content:space-between; gap:12px;
+				}
+				.cpo-discount-label { font-size:15.5px; font-weight:500; color:#111827; text-align:left; }
+				.cpo-discount-desc  { font-size:14px; color:#6B7280; margin-top:3px; line-height:1.45; text-align:left; }
+				.cpo-discount-controls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+				.cpo-type-group { display:flex; border:1.5px solid #D1D5DB; border-radius:6px; overflow:hidden; }
+				.cpo-type-btn {
+					width:34px; height:36px; border:none; cursor:pointer;
+					font-size:13px; font-weight:500; font-family:inherit;
+					background:#F9FAFB; color:#6B7280;
+					transition:background .13s, color .13s;
+				}
+				.cpo-type-btn:first-child { border-right:1px solid #D1D5DB; }
+				.cpo-type-btn.cpo-type-sel { background:#3B82F6; color:#fff; }
+				.cpo-type-btn:not(.cpo-type-sel):hover { background:#EFF6FF; color:#3B82F6; }
+				.cpo-discount-input {
+					width:70px; border:1.5px solid #D1D5DB; border-radius:6px;
+					padding:8px 10px; outline:none;
+					font-size:14px; font-family:'DM Mono',monospace; font-weight:500;
+					color:#111827; background:#fff; text-align:right;
+					transition:border-color .15s, box-shadow .15s;
+				}
+				.cpo-discount-input:focus { border-color:#3B82F6; box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+				.cpo-discount-input::placeholder { color:#C4C9D4; font-weight:400; }
 				.cpo-btn {
 					padding:10px 26px; border-radius:7px;
 					font-size:15px; font-family:inherit; font-weight:500;
@@ -259,6 +293,54 @@ export default function CreatePOModal({ selectedCount, selectedItems, onClose, o
 								<div style={S.toggleTitle}>Populate rate from last bill</div>
 								<div style={S.toggleDesc}>
 									Looks up the most recent bill from this vendor for each item and uses that rate
+								</div>
+							</div>
+						</div>
+
+						<div style={S.divider} />
+
+						{/* Discount */}
+						<div className="cpo-discount-row">
+							<div>
+								<div className="cpo-discount-label">Discount</div>
+								<div className="cpo-discount-desc">
+									{discountType === '%' ? 'Percentage off the PO subtotal' : 'Flat amount off the PO total'}
+								</div>
+							</div>
+							<div className="cpo-discount-controls">
+								<div className="cpo-type-group">
+									<button
+										className={`cpo-type-btn${discountType === '%' ? ' cpo-type-sel' : ''}`}
+										onClick={() => setDiscountType('%')}>%</button>
+									<button
+										className={`cpo-type-btn${discountType === '₹' ? ' cpo-type-sel' : ''}`}
+										onClick={() => setDiscountType('₹')}>₹</button>
+								</div>
+								<input
+									className="cpo-discount-input"
+									type="number" min="0" step={discountType === '%' ? '0.1' : '1'}
+									max={discountType === '%' ? '100' : undefined}
+									value={discount}
+									onChange={(e) => setDiscount(e.target.value)}
+									placeholder="0"
+								/>
+							</div>
+						</div>
+
+						<div style={S.divider} />
+
+						{/* Round off toggle */}
+						<div style={S.toggleRow}>
+							<div
+								className="cpo-toggle-track"
+								style={{ background: roundOff ? '#3B82F6' : '#D1D5DB' }}
+								onClick={() => setRoundOff((v) => !v)}>
+								<div className="cpo-toggle-thumb" style={{ transform: roundOff ? 'translateX(16px)' : 'translateX(0)' }} />
+							</div>
+							<div style={S.toggleTextBlock}>
+								<div style={S.toggleTitle}>Round off</div>
+								<div style={S.toggleDesc}>
+									Adds a round-off adjustment to the PO total
 								</div>
 							</div>
 						</div>

@@ -43,7 +43,7 @@ export default function ZohoItemsTable() {
 	const [poResult, setPoResult] = useState(null);
 
 	const itemCacheRef = useRef(null);
-	const pendingPOOptsRef = useRef({ bundleSize: 0, populateRate: false });
+	const pendingPOOptsRef = useRef({ bundleSize: 0, populateRate: false, discount: 0, discountType: '%', roundOff: true });
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -128,12 +128,12 @@ export default function ZohoItemsTable() {
 
 	// PO creation — defined first so handleCreatePOClick can safely reference it
 	const doCreatePO = useCallback(
-		async (vendorId, itemsForPO, bundle, populateRate) => {
+		async (vendorId, itemsForPO, bundle, populateRate, discount, discountType, roundOff) => {
 			setCreatingPO(true);
 			setPoResult(null);
 			try {
 				const bundleNum = Number(bundle) > 0 ? Number(bundle) : 0;
-				const po = await createPurchaseOrder(vendorId, itemsForPO, bundleNum, populateRate);
+				const po = await createPurchaseOrder(vendorId, itemsForPO, bundleNum, populateRate, discount, discountType, roundOff);
 				setPoResult({
 					success: true,
 					message: `Purchase Order ${po.purchaseorder_number || ''} created in draft.`,
@@ -158,8 +158,8 @@ export default function ZohoItemsTable() {
 	}, [selectedItems]);
 
 	// Step 2: options confirmed → check vendors
-	const handleCreatePOConfirm = useCallback(({ bundleSize: bs, populateRate: pr }) => {
-		pendingPOOptsRef.current = { bundleSize: bs, populateRate: pr };
+	const handleCreatePOConfirm = useCallback(({ bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro }) => {
+		pendingPOOptsRef.current = { bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro };
 		setShowCreatePOModal(false);
 
 		const uniqueVendorIds = new Set(
@@ -168,7 +168,7 @@ export default function ZohoItemsTable() {
 
 		if (uniqueVendorIds.size === 1) {
 			const vendorId = [...uniqueVendorIds][0];
-			doCreatePO(vendorId, selectedItems, bs, pr);
+			doCreatePO(vendorId, selectedItems, bs, pr, dc, dt, ro);
 		} else {
 			setShowVendorModal(true);
 		}
@@ -507,6 +507,9 @@ export default function ZohoItemsTable() {
 				selectedItems,
 				pendingPOOptsRef.current.bundleSize,
 				pendingPOOptsRef.current.populateRate,
+				pendingPOOptsRef.current.discount,
+				pendingPOOptsRef.current.discountType,
+				pendingPOOptsRef.current.roundOff,
 			)}
 					creating={creatingPO}
 				/>

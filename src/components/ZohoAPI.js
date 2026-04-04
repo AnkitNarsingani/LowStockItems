@@ -286,6 +286,29 @@ async function getVendorDetails(vendorId) {
 	return data.contact || {};
 }
 
+// ─── DISCOUNT ACCOUNT: cached lookup for "Purchase Discounts" account ID ─────
+
+let _discountAccountId = null;
+let _discountAccountFetched = false;
+
+async function getDiscountAccountId() {
+	if (_discountAccountFetched) return _discountAccountId;
+	try {
+		const url = `${BASE_PROXY}/chartofaccounts?organization_id=${ORG_ID}&search_text=Purchase+Discounts`;
+		const res = await fetchWithRetry(url, { headers: authHeaders() });
+		const data = await res.json();
+		const account = data.chartofaccounts?.find(
+			(a) => a.account_name?.toLowerCase() === 'purchase discounts',
+		);
+		_discountAccountId = account?.account_id || null;
+		console.log('[getDiscountAccountId] →', _discountAccountId);
+	} catch {
+		_discountAccountId = null;
+	}
+	_discountAccountFetched = true;
+	return _discountAccountId;
+}
+
 // ─── ORG STATE: cached fetch of the organisation's state ─────────────────────
 
 let _orgState = null;
@@ -338,8 +361,12 @@ export async function getVendors() {
 // bundleSize > 0 → velocity-weighted bundle allocation (mirrors 'Populate Qty')
 // bundleSize = 0 → simple: qty = max_capacity - available_stock
 
-export async function createPurchaseOrder(vendorId, items, bundleSize = 0, populateRate = false) {
-	const [vendor, orgState] = await Promise.all([getVendorDetails(vendorId), getOrgState()]);
+export async function createPurchaseOrder(vendorId, items, bundleSize = 0, populateRate = false, discount = 0, discountType = '%', roundOff = true) {
+	const [vendor, orgState, discountAccountId] = await Promise.all([
+		getVendorDetails(vendorId),
+		getOrgState(),
+		discount > 0 ? getDiscountAccountId() : Promise.resolve(null),
+	]);
 
 	// Compare org state_code vs vendor's place_of_contact (state code) for GST determination
 	// place_of_contact is the authoritative GST field on Indian vendor contacts (e.g. "TS", "TN")
@@ -418,6 +445,20 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	// place_of_contact is the GST-authoritative state field; source_of_supply is a fallback
 	const supplyState = vendor.place_of_contact || vendor.source_of_supply;
 	if (supplyState) body.source_of_supply = supplyState;
+
+	// Discount — percentage sent as "X%", flat amount sent as a number
+	if (discount > 0) {
+		body.discount = discountType === '%' ? `${discount}%` : discount;
+		body.is_discount_before_tax = true;
+		if (discountAccountId) body.discount_account_id = discountAccountId;
+	}
+
+	// Round off — Zoho Books applies it as a named adjustment line
+	if (roundOff) {
+		body.adjustment_description = 'Round Off';
+		// Actual value is 0; Zoho recalculates it when the PO is opened
+		body.adjustment = 0;
+	}
 
 	console.log('[createPO] payload →', JSON.stringify(body, null, 2));
 
