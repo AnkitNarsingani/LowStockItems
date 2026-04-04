@@ -5,9 +5,11 @@ import React, {
 	useMemo,
 	useRef,
 } from 'react';
-import { fetchItems } from './ZohoAPI';
+import { fetchItems, createPurchaseOrder } from './ZohoAPI';
 import { logout } from '../App';
 import ItemRow from './ItemRow';
+import VendorSelectModal from './VendorSelectModal';
+import CreatePOModal from './CreatePOModal';
 import './ItemRow.css';
 
 const GROUP_BY_OPTIONS = {
@@ -26,15 +28,22 @@ export default function ZohoItemsTable() {
 	const [items, setItems] = useState([]);
 	const [groupBy, setGroupBy] = useState(GROUP_BY_OPTIONS.VENDOR);
 	const [search, setSearch] = useState('');
-
 	const [expandedGroups, setExpandedGroups] = useState(new Set());
-
 	const [loading, setLoading] = useState(true);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [totalCount, setTotalCount] = useState(0);
 
-	// CHANGE 4: single cache — fetch once, reuse on every groupBy switch
+	// Selection state
+	const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+
+	// PO creation state
+	const [showCreatePOModal, setShowCreatePOModal] = useState(false);
+	const [showVendorModal, setShowVendorModal] = useState(false);
+	const [creatingPO, setCreatingPO] = useState(false);
+	const [poResult, setPoResult] = useState(null);
+
 	const itemCacheRef = useRef(null);
+	const pendingPOOptsRef = useRef({ bundleSize: 0, populateRate: false });
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -49,7 +58,6 @@ export default function ZohoItemsTable() {
 		},
 		[groupBy],
 	);
-
 
 	const filteredItems = useMemo(() => {
 		const q = search.toLowerCase().trim();
@@ -83,7 +91,89 @@ export default function ZohoItemsTable() {
 		});
 	}, []);
 
-	// CHANGE 4: empty dependency array — groupBy changes never trigger a fetch
+	// Selection handlers
+	const toggleSelect = useCallback((itemId) => {
+		setSelectedItemIds((prev) => {
+			const next = new Set(prev);
+			next.has(itemId) ? next.delete(itemId) : next.add(itemId);
+			return next;
+		});
+	}, []);
+
+	const allFilteredSelected =
+		filteredItems.length > 0 &&
+		filteredItems.every((item) => selectedItemIds.has(item.item_id));
+
+	const someFilteredSelected =
+		filteredItems.some((item) => selectedItemIds.has(item.item_id)) &&
+		!allFilteredSelected;
+
+	const toggleSelectAll = useCallback(() => {
+		setSelectedItemIds((prev) => {
+			const next = new Set(prev);
+			if (filteredItems.every((item) => next.has(item.item_id))) {
+				filteredItems.forEach((item) => next.delete(item.item_id));
+			} else {
+				filteredItems.forEach((item) => next.add(item.item_id));
+			}
+			return next;
+		});
+	}, [filteredItems]);
+
+	// Selected items derived from current items list
+	const selectedItems = useMemo(
+		() => items.filter((item) => selectedItemIds.has(item.item_id)),
+		[items, selectedItemIds],
+	);
+
+	// PO creation — defined first so handleCreatePOClick can safely reference it
+	const doCreatePO = useCallback(
+		async (vendorId, itemsForPO, bundle, populateRate) => {
+			setCreatingPO(true);
+			setPoResult(null);
+			try {
+				const bundleNum = Number(bundle) > 0 ? Number(bundle) : 0;
+				const po = await createPurchaseOrder(vendorId, itemsForPO, bundleNum, populateRate);
+				setPoResult({
+					success: true,
+					message: `Purchase Order ${po.purchaseorder_number || ''} created in draft.`,
+					poId: po.purchaseorder_id,
+				});
+				setSelectedItemIds(new Set());
+				setShowVendorModal(false);
+			} catch (err) {
+				setPoResult({ success: false, message: err.message || 'Failed to create PO.' });
+				setShowVendorModal(false);
+			} finally {
+				setCreatingPO(false);
+			}
+		},
+		[],
+	);
+
+	// Step 1: open the options modal
+	const handleCreatePOClick = useCallback(() => {
+		if (selectedItems.length === 0) return;
+		setShowCreatePOModal(true);
+	}, [selectedItems]);
+
+	// Step 2: options confirmed → check vendors
+	const handleCreatePOConfirm = useCallback(({ bundleSize: bs, populateRate: pr }) => {
+		pendingPOOptsRef.current = { bundleSize: bs, populateRate: pr };
+		setShowCreatePOModal(false);
+
+		const uniqueVendorIds = new Set(
+			selectedItems.map((i) => i.vendor_id).filter(Boolean),
+		);
+
+		if (uniqueVendorIds.size === 1) {
+			const vendorId = [...uniqueVendorIds][0];
+			doCreatePO(vendorId, selectedItems, bs, pr);
+		} else {
+			setShowVendorModal(true);
+		}
+	}, [selectedItems, doCreatePO]);
+
 	useEffect(() => {
 		const loadItems = async () => {
 			if (itemCacheRef.current) {
@@ -134,9 +224,41 @@ export default function ZohoItemsTable() {
 					<span className="text-xs bg-gray-100 text-gray-500 border border-gray-200 rounded-full px-2 py-0.5">
 						{filteredItems.length} items
 					</span>
+					{selectedItemIds.size > 0 && (
+						<span className="text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5">
+							{selectedItemIds.size} selected
+						</span>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2 flex-wrap">
+					{/* Create PO — visible when ≥1 item selected */}
+					{selectedItemIds.size >= 1 && (
+						<button
+							onClick={handleCreatePOClick}
+							disabled={creatingPO}
+							className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+							{creatingPO ? (
+								<>
+									<span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+									Creating…
+								</>
+							) : (
+								<>
+									<svg className="w-3 h-3" viewBox="0 0 16 16" fill="none">
+										<path
+											d="M8 3v10M3 8h10"
+											stroke="currentColor"
+											strokeWidth="1.75"
+											strokeLinecap="round"
+										/>
+									</svg>
+									Create PO
+								</>
+							)}
+						</button>
+					)}
+
 					<div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
 						<svg
 							className="w-3 h-3 text-gray-400 flex-shrink-0"
@@ -188,14 +310,30 @@ export default function ZohoItemsTable() {
 				</div>
 			</div>
 
+			{/* PO result notification */}
+			{poResult && (
+				<div
+					className={`flex items-center justify-between px-4 py-2.5 text-xs border-b ${
+						poResult.success
+							? 'bg-green-50 border-green-100 text-green-700'
+							: 'bg-red-50 border-red-100 text-red-600'
+					}`}>
+					<span>{poResult.message}</span>
+					<button
+						onClick={() => setPoResult(null)}
+						className="ml-4 opacity-60 hover:opacity-100">
+						✕
+					</button>
+				</div>
+			)}
+
 			{/* METRIC CARDS */}
 			<div className="grid grid-cols-2 gap-2.5 px-4 py-3 border-b border-gray-100">
 				<MetricCard label="Total SKUs" value={metrics.total} color="default" />
-
 				<MetricCard label={groupByLabel} value={metrics.groups} color="green" />
 			</div>
 
-			{/* CHANGE 1 + 3: bar only renders while loading; uses bouncing CSS animation */}
+			{/* Loading bar */}
 			{loading && (
 				<div className="px-4 py-2.5 border-b border-gray-100">
 					<div className="flex justify-between items-center mb-1.5">
@@ -222,7 +360,13 @@ export default function ZohoItemsTable() {
 							<th className="w-9 p-2 text-center">
 								<input
 									type="checkbox"
-									className="form-checkbox h-3.5 w-3.5 text-blue-500 rounded"
+									checked={allFilteredSelected}
+									ref={(el) => {
+										if (el) el.indeterminate = someFilteredSelected;
+									}}
+									onChange={toggleSelectAll}
+									disabled={filteredItems.length === 0}
+									className="form-checkbox h-3.5 w-3.5 text-blue-500 rounded cursor-pointer disabled:cursor-not-allowed"
 								/>
 							</th>
 							<th className="p-2 text-left font-medium text-gray-500 w-48">
@@ -241,13 +385,13 @@ export default function ZohoItemsTable() {
 								HSN / SAC
 							</th>
 							<th className="p-2 text-right font-medium text-gray-500 w-24">
+								Reorder qty
+							</th>
+							<th className="p-2 text-right font-medium text-gray-500 w-24">
 								Max cap.
 							</th>
 							<th className="p-2 text-right font-medium text-gray-500 w-24">
 								On hand
-							</th>
-							<th className="p-2 text-right font-medium text-gray-500 w-28">
-								To order
 							</th>
 						</tr>
 					</thead>
@@ -257,7 +401,6 @@ export default function ZohoItemsTable() {
 							const isCollapsed = !expandedGroups.has(group);
 							return (
 								<React.Fragment key={group}>
-									{/* CHANGE 2: clickable collapsible group header */}
 									<tr
 										className="bg-gray-50 border-t border-b border-gray-100 cursor-pointer select-none hover:bg-gray-100 transition-colors"
 										onClick={() => toggleGroup(group)}>
@@ -293,7 +436,11 @@ export default function ZohoItemsTable() {
 
 									{!isCollapsed &&
 										groupItems.map((item) => (
-											<ItemRow key={item.item_id} item={item} />
+											<ItemRow
+												key={item.item_id}
+												item={{ ...item, selected: selectedItemIds.has(item.item_id) }}
+												toggleSelect={toggleSelect}
+											/>
 										))}
 								</React.Fragment>
 							);
@@ -339,6 +486,31 @@ export default function ZohoItemsTable() {
 					</tbody>
 				</table>
 			</div>
+
+			{/* Step 1: PO options modal (simple vs bundle) */}
+			{showCreatePOModal && (
+				<CreatePOModal
+					selectedCount={selectedItems.length}
+					selectedItems={selectedItems}
+					onClose={() => setShowCreatePOModal(false)}
+					onConfirm={handleCreatePOConfirm}
+				/>
+			)}
+
+			{/* Step 2: Vendor selection modal (when multiple vendors) */}
+			{showVendorModal && (
+				<VendorSelectModal
+					selectedItems={selectedItems}
+					onClose={() => !creatingPO && setShowVendorModal(false)}
+					onConfirm={(vendorId) => doCreatePO(
+				vendorId,
+				selectedItems,
+				pendingPOOptsRef.current.bundleSize,
+				pendingPOOptsRef.current.populateRate,
+			)}
+					creating={creatingPO}
+				/>
+			)}
 		</div>
 	);
 }

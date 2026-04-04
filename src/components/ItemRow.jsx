@@ -3,10 +3,7 @@ import './ItemRow.css';
 export default function ItemRow({ item, toggleSelect }) {
 	const maxCapacity = Number(item.cf_maximum_capacity);
 	const stockOnHand = Number(item.stock_on_hand);
-	const rawQtyOrder =
-		!isNaN(maxCapacity) && !isNaN(stockOnHand)
-			? maxCapacity - stockOnHand
-			: null;
+	const reorderLevel = item.reorder_level;
 
 	// Status: critical = zero/negative, warning = low but positive, ok = fine
 	const status =
@@ -22,22 +19,6 @@ export default function ItemRow({ item, toggleSelect }) {
 			: status === 'warning'
 				? 'text-amber-600 font-medium'
 				: 'text-gray-500';
-
-	const toOrderContent =
-		rawQtyOrder === null ? null : rawQtyOrder === 0 ? (
-			<span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 font-medium">
-				0
-			</span>
-		) : (
-			<span
-				className={
-					status === 'critical'
-						? 'inline-block px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium'
-						: 'inline-block px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium'
-				}>
-				{rawQtyOrder}
-			</span>
-		);
 
 	return (
 		<tr
@@ -101,6 +82,11 @@ export default function ItemRow({ item, toggleSelect }) {
 				</span>
 			</td>
 
+			{/* Reorder qty */}
+			<td className="p-2 text-right w-24 text-xs text-gray-500 tabular-nums">
+				{reorderLevel != null ? reorderLevel : '—'}
+			</td>
+
 			{/* Max capacity */}
 			<td className="p-2 text-right w-24 text-xs text-gray-500 tabular-nums">
 				{isNaN(maxCapacity) ? '—' : maxCapacity}
@@ -110,9 +96,6 @@ export default function ItemRow({ item, toggleSelect }) {
 			<td className="p-2 text-right w-24 tabular-nums">
 				<span className={`text-xs ${stockClass}`}>{stockOnHand}</span>
 			</td>
-
-			{/* To order */}
-			<td className="p-2 text-right w-28 tabular-nums">{toOrderContent}</td>
 		</tr>
 	);
 }

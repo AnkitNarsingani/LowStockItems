@@ -43,7 +43,6 @@ async function getLowStockItems() {
 // ─── STEP 2: collect item_ids that already have an open PO ───────────────────
 
 async function getOpenPOItemIds() {
-	// 2a. Fetch all open PO headers (paginated)
 	let page = 1;
 	let openPOs = [];
 	let hasMore = true;
@@ -61,7 +60,6 @@ async function getOpenPOItemIds() {
 
 	if (openPOs.length === 0) return new Set();
 
-	// 2b. Fetch each PO's detail to get its line items, collect item_ids
 	const coveredItemIds = new Set();
 
 	for (const po of openPOs) {
@@ -77,14 +75,14 @@ async function getOpenPOItemIds() {
 
 			await delay(300);
 		} catch {
-			// If a single PO fetch fails, skip it — don't abort the whole process
+			// skip failed PO fetches
 		}
 	}
 
 	return coveredItemIds;
 }
 
-// ─── STEP 3: enrich a single item with vendor / brand / manufacturer ──────────
+// ─── STEP 3: enrich a single item ────────────────────────────────────────────
 
 async function enrichSingleItem(item) {
 	try {
@@ -94,37 +92,321 @@ async function enrichSingleItem(item) {
 
 		await delay(300);
 
+		const d = data.item;
+
+		const taxId =
+			d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')?.tax_id ||
+			d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')?.tax_id ||
+			d.tax_id ||
+			d.purchase_tax_id ||
+			null;
+
 		return {
 			...item,
-			vendor_name: data.item.vendor_name || 'Unknown Vendor',
-			brand: data.item.brand || 'Unknown Brand',
-			manufacturer: data.item.manufacturer || 'Unknown Manufacturer',
+			vendor_id: d.vendor_id || null,
+			vendor_name: d.vendor_name || 'Unknown Vendor',
+			brand: d.brand || 'Unknown Brand',
+			manufacturer: d.manufacturer || 'Unknown Manufacturer',
+			// PO rate — use purchase rate, fall back to selling rate
+			purchase_rate: d.purchase_rate || d.rate || 0,
+			purchase_account_id: d.purchase_account_id || null,
+			tax_id: taxId,
+			// Quantity fields matching the 'Populate Qty' Deluge script
+			available_stock: d.available_stock ?? d.stock_on_hand ?? 0,
+			reorder_level: d.reorder_level ?? null,
+			created_time: d.created_time || null,
+			minimum_order_quantity: d.minimum_order_quantity || 0,
 		};
 	} catch {
 		return item;
 	}
 }
 
-// ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
+// ─── SALES: quantity sold for an item over last 6 months ─────────────────────
+
+async function getSalesLast6Months(itemId) {
+	try {
+		const today = new Date();
+		const toDate = today.toISOString().split('T')[0];
+		const from = new Date(today);
+		from.setMonth(from.getMonth() - 6);
+		const fromDate = from.toISOString().split('T')[0];
+
+		const params = new URLSearchParams({
+			organization_id: ORG_ID,
+			from_date: fromDate,
+			to_date: toDate,
+			rule: JSON.stringify({
+				columns: [{ index: 1, field: 'item_id', value: [itemId], comparator: 'in', group: 'report' }],
+				criteria_string: '1',
+			}),
+			select_columns: JSON.stringify([{ field: 'quantity_sold', group: 'report' }]),
+		});
+
+		const url = `${BASE_PROXY}/reports/salesbyitem?${params.toString()}`;
+		const res = await fetchWithRetry(url, { headers: authHeaders() });
+		const data = await res.json();
+
+		if (data.code === 0 && data.sales?.length > 0) {
+			return Number(data.sales[0].quantity_sold) || 0;
+		}
+		return 0;
+	} catch {
+		return 0;
+	}
+}
+
+// ─── BUNDLE ALLOCATION: velocity-weighted qty distribution ────────────────────
+// Mirrors the Deluge 'Populate Qty' bundle logic exactly.
+
+async function calculateBundleQuantities(items, bundleSize) {
+	const today = new Date();
+	const candidates = [];
+	let totalWeightedNeed = 0;
+
+	for (const item of items) {
+		const maxCap = Number(item.cf_maximum_capacity);
+		const availStock = Number(item.available_stock ?? item.stock_on_hand ?? 0);
+
+		if (maxCap <= 0) continue;
+
+		const rawQtyToOrder = maxCap - availStock;
+		if (rawQtyToOrder <= 0) continue;
+
+		const salesLast6Months = await getSalesLast6Months(item.item_id);
+		await delay(150);
+
+		// Actual days: 180, or days since creation if item is younger than 6 months
+		let actualDays = 180;
+		if (item.created_time) {
+			const createdDate = new Date(item.created_time.substring(0, 10));
+			const daysSince = Math.floor((today - createdDate) / 86400000);
+			if (daysSince > 0 && daysSince < 180) actualDays = daysSince;
+		}
+
+		const velocity =
+			salesLast6Months > 0 ? salesLast6Months / actualDays : 1.0 / actualDays;
+
+		const weightedNeed = rawQtyToOrder * velocity;
+		if (weightedNeed <= 0) continue;
+
+		const minOrderQty = item.minimum_order_quantity > 0 ? item.minimum_order_quantity : 1;
+
+		totalWeightedNeed += weightedNeed;
+		candidates.push({ item, velocity, weightedNeed, minOrderQty });
+	}
+
+	if (candidates.length === 0 || totalWeightedNeed <= 0) return null;
+
+	// Initial proportional allocation
+	const allocated = candidates.map((c) => {
+		const ideal = (c.weightedNeed / totalWeightedNeed) * bundleSize;
+		const baseQty = Math.max(Math.floor(ideal), c.minOrderQty);
+		return { ...c, baseQty, remainder: ideal - baseQty };
+	});
+
+	// Rounding correction — use Math.floor to match Deluge's bundle.toLong()
+	const totalAssigned = allocated.reduce((s, c) => s + c.baseQty, 0);
+	const diff = Math.floor(bundleSize) - totalAssigned;
+
+	if (diff > 0) {
+		// Give excess to highest-velocity item
+		const idx = allocated.reduce(
+			(best, c, i) => (c.velocity > allocated[best].velocity ? i : best),
+			0,
+		);
+		allocated[idx].baseQty += diff;
+	} else if (diff < 0) {
+		// Take from lowest-velocity item (never below minOrderQty)
+		const idx = allocated.reduce(
+			(best, c, i) => (c.velocity < allocated[best].velocity ? i : best),
+			0,
+		);
+		const canRemove = Math.min(-diff, allocated[idx].baseQty - allocated[idx].minOrderQty);
+		if (canRemove > 0) allocated[idx].baseQty -= canRemove;
+	}
+
+	const qtyMap = {};
+	for (const c of allocated) {
+		if (c.baseQty > 0) qtyMap[c.item.item_id] = c.baseQty;
+	}
+	return qtyMap;
+}
+
+// ─── BILL RATE: most recent bill rate for a vendor + item ────────────────────
+// Mirrors the 'Populate Rate' Deluge script logic.
+
+async function getBillRateForItem(vendorName, itemId) {
+	try {
+		const params = new URLSearchParams({
+			organization_id: ORG_ID,
+			vendor_name: vendorName,
+			item_id: itemId,
+			sort_column: 'date',
+			sort_order: 'D',
+			per_page: '1',
+		});
+
+		const listRes = await fetchWithRetry(
+			`${BASE_PROXY}/bills?${params.toString()}`,
+			{ headers: authHeaders() },
+		);
+		const listData = await listRes.json();
+
+		if (listData.code !== 0 || !listData.bills?.length) return null;
+
+		const billId = listData.bills[0].bill_id;
+		await delay(300);
+
+		const detailRes = await fetchWithRetry(
+			`${BASE_PROXY}/bills/${billId}?organization_id=${ORG_ID}`,
+			{ headers: authHeaders() },
+		);
+		const detailData = await detailRes.json();
+
+		if (detailData.code !== 0) return null;
+
+		const lineItems = detailData.bill?.line_items || [];
+		for (const li of lineItems) {
+			if (li.item_id === itemId && li.rate != null) {
+				return Number(li.rate);
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+// ─── VENDOR DETAILS ───────────────────────────────────────────────────────────
+
+async function getVendorDetails(vendorId) {
+	const url = `${BASE_PROXY}/contacts/${vendorId}?organization_id=${ORG_ID}`;
+	const res = await fetchWithRetry(url, { headers: authHeaders() });
+	const data = await res.json();
+	return data.contact || {};
+}
+
+// ─── VENDORS: fetch all vendors ───────────────────────────────────────────────
+
+export async function getVendors() {
+	let page = 1;
+	let allVendors = [];
+	let hasMore = true;
+
+	while (hasMore) {
+		const url = `${BASE_PROXY}/contacts?organization_id=${ORG_ID}&contact_type=vendor&page=${page}&per_page=200`;
+		const res = await fetchWithRetry(url, { headers: authHeaders() });
+		const data = await res.json();
+
+		allVendors = allVendors.concat(data.contacts || []);
+		hasMore = data.page_context?.has_more_page;
+		page++;
+		if (hasMore) await delay(300);
+	}
+
+	return allVendors;
+}
+
+// ─── CREATE PO ────────────────────────────────────────────────────────────────
 //
-// Flow:
-//   1. Fetch low stock items + open PO item_ids in parallel
-//   2. Remove any low stock item that already has an open PO
-//   3. Enrich the remaining items one-by-one, streaming progress via onProgress
+// bundleSize > 0 → velocity-weighted bundle allocation (mirrors 'Populate Qty')
+// bundleSize = 0 → simple: qty = max_capacity - available_stock
+
+export async function createPurchaseOrder(vendorId, items, bundleSize = 0, populateRate = false) {
+	const vendor = await getVendorDetails(vendorId);
+
+	// Bundle mode needs sales data per item — calculate before building line items
+	let qtyMap = null;
+	if (bundleSize > 0) {
+		qtyMap = await calculateBundleQuantities(items, bundleSize);
+	}
+
+	// Rate lookup: fetch most recent bill rate per item from this vendor
+	const billRateMap = {};
+	if (populateRate && vendor.contact_name) {
+		for (const item of items) {
+			const rate = await getBillRateForItem(vendor.contact_name, item.item_id);
+			if (rate !== null) billRateMap[item.item_id] = rate;
+			await delay(150);
+		}
+	}
+
+	const lineItems = items.flatMap((item) => {
+		let quantity;
+
+		if (qtyMap !== null) {
+			// Bundle mode: only include items that received an allocation
+			// (overflow and zero-weight items are excluded, matching Deluge behaviour)
+			if (qtyMap[item.item_id] === undefined) return [];
+			quantity = qtyMap[item.item_id];
+		} else {
+			// Simple mode: qty = max_capacity - available_stock (toLong → Math.floor)
+			const maxCap = Number(item.cf_maximum_capacity);
+			const availStock = Number(item.available_stock ?? item.stock_on_hand ?? 0);
+			const raw = maxCap - availStock;
+			// Skip items with no max capacity or no qty needed
+			if (isNaN(maxCap) || raw <= 0) return [];
+			quantity = Math.floor(raw);
+		}
+
+		// Rate: bill lookup first (if enabled), then purchase_rate, then selling rate
+		const rate = billRateMap[item.item_id] ?? item.purchase_rate ?? item.rate ?? 0;
+
+		const line = {
+			item_id: item.item_id,
+			name: item.name,
+			quantity,
+			rate,
+		};
+
+		if (item.unit) line.unit = item.unit;
+		if (item.hsn_or_sac) line.hsn_or_sac = item.hsn_or_sac;
+		if (item.purchase_account_id) line.account_id = item.purchase_account_id;
+		if (item.tax_id) line.tax_id = item.tax_id;
+
+		return [line];
+	});
+
+	const today = new Date().toISOString().split('T')[0];
+
+	const body = { vendor_id: vendorId, date: today, line_items: lineItems };
+
+	if (vendor.currency_id) body.currency_id = vendor.currency_id;
+	if (vendor.gst_treatment) body.gst_treatment = vendor.gst_treatment;
+	if (vendor.gst_no) body.gst_no = vendor.gst_no;
+	if (vendor.source_of_supply) body.source_of_supply = vendor.source_of_supply;
+
+	console.log('[createPO] payload →', JSON.stringify(body, null, 2));
+
+	const url = `${BASE_PROXY}/purchaseorders?organization_id=${ORG_ID}`;
+	const res = await fetchWithRetry(url, {
+		method: 'POST',
+		headers: { ...authHeaders(), 'content-type': 'application/json' },
+		body: JSON.stringify(body),
+	});
+
+	const data = await res.json();
+	console.log('[createPO] response →', JSON.stringify(data, null, 2));
+
+	if (data.code !== 0) {
+		throw new Error(data.message || 'Failed to create purchase order');
+	}
+	return data.purchaseorder;
+}
+
+// ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
 export const fetchItems = async (onProgress) => {
-	// Run both fetches concurrently — they don't depend on each other
 	const [lowStockItems, openPOItemIds] = await Promise.all([
 		getLowStockItems(),
 		getOpenPOItemIds(),
 	]);
 
-	// Filter out items already covered by an open PO
 	const uncoveredItems = lowStockItems.filter(
 		(item) => !openPOItemIds.has(item.item_id),
 	);
 
-	// Enrich remaining items and stream progress
 	const processed = [];
 
 	for (const item of uncoveredItems) {
