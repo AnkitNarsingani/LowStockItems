@@ -158,18 +158,21 @@ export default function ZohoItemsTable() {
 	}, [selectedItems]);
 
 	// Step 2: options confirmed → check vendors
-	const handleCreatePOConfirm = useCallback(({ bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro }) => {
+	const handleCreatePOConfirm = useCallback(async ({ bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro }) => {
 		pendingPOOptsRef.current = { bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro };
-		setShowCreatePOModal(false);
 
 		const uniqueVendorIds = new Set(
 			selectedItems.map((i) => i.vendor_id).filter(Boolean),
 		);
 
 		if (uniqueVendorIds.size === 1) {
+			// Single vendor: keep modal open (showing spinner) until PO is created
 			const vendorId = [...uniqueVendorIds][0];
-			doCreatePO(vendorId, selectedItems, bs, pr, dc, dt, ro);
+			await doCreatePO(vendorId, selectedItems, bs, pr, dc, dt, ro);
+			setShowCreatePOModal(false);
 		} else {
+			// Multiple vendors: close and let the vendor-select modal take over
+			setShowCreatePOModal(false);
 			setShowVendorModal(true);
 		}
 	}, [selectedItems, doCreatePO]);
@@ -492,8 +495,9 @@ export default function ZohoItemsTable() {
 				<CreatePOModal
 					selectedCount={selectedItems.length}
 					selectedItems={selectedItems}
-					onClose={() => setShowCreatePOModal(false)}
+					onClose={() => !creatingPO && setShowCreatePOModal(false)}
 					onConfirm={handleCreatePOConfirm}
+					creating={creatingPO}
 				/>
 			)}
 

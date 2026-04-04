@@ -94,8 +94,12 @@ async function enrichSingleItem(item) {
 
 		const d = data.item;
 
-		const taxIdInter = d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')?.tax_id || null;
-		const taxIdIntra = d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')?.tax_id || null;
+		const taxIdInter =
+			d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')
+				?.tax_id || null;
+		const taxIdIntra =
+			d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')
+				?.tax_id || null;
 
 		return {
 			...item,
@@ -136,10 +140,20 @@ async function getSalesLast6Months(itemId) {
 			from_date: fromDate,
 			to_date: toDate,
 			rule: JSON.stringify({
-				columns: [{ index: 1, field: 'item_id', value: [itemId], comparator: 'in', group: 'report' }],
+				columns: [
+					{
+						index: 1,
+						field: 'item_id',
+						value: [itemId],
+						comparator: 'in',
+						group: 'report',
+					},
+				],
 				criteria_string: '1',
 			}),
-			select_columns: JSON.stringify([{ field: 'quantity_sold', group: 'report' }]),
+			select_columns: JSON.stringify([
+				{ field: 'quantity_sold', group: 'report' },
+			]),
 		});
 
 		const url = `${BASE_PROXY}/reports/salesbyitem?${params.toString()}`;
@@ -189,7 +203,8 @@ async function calculateBundleQuantities(items, bundleSize) {
 		const weightedNeed = rawQtyToOrder * velocity;
 		if (weightedNeed <= 0) continue;
 
-		const minOrderQty = item.minimum_order_quantity > 0 ? item.minimum_order_quantity : 1;
+		const minOrderQty =
+			item.minimum_order_quantity > 0 ? item.minimum_order_quantity : 1;
 
 		totalWeightedNeed += weightedNeed;
 		candidates.push({ item, velocity, weightedNeed, minOrderQty });
@@ -221,7 +236,10 @@ async function calculateBundleQuantities(items, bundleSize) {
 			(best, c, i) => (c.velocity < allocated[best].velocity ? i : best),
 			0,
 		);
-		const canRemove = Math.min(-diff, allocated[idx].baseQty - allocated[idx].minOrderQty);
+		const canRemove = Math.min(
+			-diff,
+			allocated[idx].baseQty - allocated[idx].minOrderQty,
+		);
 		if (canRemove > 0) allocated[idx].baseQty -= canRemove;
 	}
 
@@ -301,7 +319,6 @@ async function getDiscountAccountId() {
 			(a) => a.account_name?.toLowerCase() === 'purchase discounts',
 		);
 		_discountAccountId = account?.account_id || null;
-		console.log('[getDiscountAccountId] →', _discountAccountId);
 	} catch {
 		_discountAccountId = null;
 	}
@@ -323,10 +340,14 @@ async function getOrgState() {
 		);
 		const data = await res.json();
 		// Filter by ORG_ID to ensure we pick the right org when the token has access to multiple orgs
-		const org = data.organizations?.find((o) => String(o.organization_id) === String(ORG_ID))
-			|| data.organizations?.[0];
-		console.log('[getOrgState] matched org →', org?.organization_id, org?.name, '| state_code →', org?.state_code);
-		_orgState = { name: org?.state?.toLowerCase().trim() || null, code: org?.state_code?.toLowerCase().trim() || null };
+		const org =
+			data.organizations?.find(
+				(o) => String(o.organization_id) === String(ORG_ID),
+			) || data.organizations?.[0];
+		_orgState = {
+			name: org?.state?.toLowerCase().trim() || null,
+			code: org?.state_code?.toLowerCase().trim() || null,
+		};
 	} catch (e) {
 		console.error('[getOrgState] error →', e);
 		_orgState = null;
@@ -361,7 +382,15 @@ export async function getVendors() {
 // bundleSize > 0 → velocity-weighted bundle allocation (mirrors 'Populate Qty')
 // bundleSize = 0 → simple: qty = max_capacity - available_stock
 
-export async function createPurchaseOrder(vendorId, items, bundleSize = 0, populateRate = false, discount = 0, discountType = '%', roundOff = true) {
+export async function createPurchaseOrder(
+	vendorId,
+	items,
+	bundleSize = 0,
+	populateRate = false,
+	discount = 0,
+	discountType = '%',
+	roundOff = true,
+) {
 	const [vendor, orgState, discountAccountId] = await Promise.all([
 		getVendorDetails(vendorId),
 		getOrgState(),
@@ -372,12 +401,8 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	// place_of_contact is the authoritative GST field on Indian vendor contacts (e.g. "TS", "TN")
 	const vendorStateCode = vendor.place_of_contact?.toLowerCase().trim() || null;
 	const orgStateCode = orgState?.code?.toLowerCase().trim() || null;
-	console.log('[createPO] orgStateCode →', orgStateCode, '| vendorStateCode →', vendorStateCode);
 	const isInterstate =
-		vendorStateCode && orgStateCode
-			? vendorStateCode !== orgStateCode
-			: true; // default to interstate (IGST) if state info is unavailable
-	console.log('[createPO] isInterstate →', isInterstate);
+		vendorStateCode && orgStateCode ? vendorStateCode !== orgStateCode : true; // default to interstate (IGST) if state info is unavailable
 
 	// Bundle mode needs sales data per item — calculate before building line items
 	let qtyMap = null;
@@ -406,15 +431,19 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 		} else {
 			// Simple mode: qty = max_capacity - available_stock (toLong → Math.floor)
 			const maxCap = Number(item.cf_maximum_capacity);
-			const availStock = Number(item.available_stock ?? item.stock_on_hand ?? 0);
+			const availStock = Number(
+				item.available_stock ?? item.stock_on_hand ?? 0,
+			);
 			const raw = maxCap - availStock;
 			// Skip items with no max capacity or no qty needed
 			if (isNaN(maxCap) || raw <= 0) return [];
 			quantity = Math.floor(raw);
 		}
 
-		// Rate: bill lookup first (if enabled), then purchase_rate, then selling rate
-		const rate = billRateMap[item.item_id] ?? item.purchase_rate ?? item.rate ?? 0;
+		// Rate: bill lookup when enabled; 0 when populate rate is off (user fills manually in Zoho)
+		const rate = populateRate
+			? (billRateMap[item.item_id] ?? item.purchase_rate ?? item.rate ?? 0)
+			: 0;
 
 		const line = {
 			item_id: item.item_id,
@@ -428,8 +457,8 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 		if (item.purchase_account_id) line.account_id = item.purchase_account_id;
 
 		const taxId = isInterstate
-			? (item.tax_id_inter || item.tax_id)
-			: (item.tax_id_intra || item.tax_id);
+			? item.tax_id_inter || item.tax_id
+			: item.tax_id_intra || item.tax_id;
 		if (taxId) line.tax_id = taxId;
 
 		return [line];
@@ -453,8 +482,6 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 		if (discountAccountId) body.discount_account_id = discountAccountId;
 	}
 
-	console.log('[createPO] payload →', JSON.stringify(body, null, 2));
-
 	const url = `${BASE_PROXY}/purchaseorders?organization_id=${ORG_ID}`;
 	const res = await fetchWithRetry(url, {
 		method: 'POST',
@@ -463,7 +490,6 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	});
 
 	const data = await res.json();
-	console.log('[createPO] response →', JSON.stringify(data, null, 2));
 
 	if (data.code !== 0) {
 		throw new Error(data.message || 'Failed to create purchase order');
@@ -476,9 +502,12 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 	if (roundOff && po?.purchaseorder_id && po?.total != null) {
 		const total = Number(po.total);
 		const adjustment = parseFloat((Math.round(total) - total).toFixed(2));
-		console.log('[createPO] round-off: total', total, '→ adjustment', adjustment);
 		if (adjustment !== 0) {
-			const putBody = { ...body, adjustment, adjustment_description: 'Round Off' };
+			const putBody = {
+				...body,
+				adjustment,
+				adjustment_description: 'Round Off',
+			};
 			const putUrl = `${BASE_PROXY}/purchaseorders/${po.purchaseorder_id}?organization_id=${ORG_ID}`;
 			const putRes = await fetchWithRetry(putUrl, {
 				method: 'PUT',
@@ -486,9 +515,9 @@ export async function createPurchaseOrder(vendorId, items, bundleSize = 0, popul
 				body: JSON.stringify(putBody),
 			});
 			const putData = await putRes.json();
-			console.log('[createPO] round-off PUT →', putData.code, putData.message);
 			// Return the updated PO if available, otherwise fall back to the created one
-			if (putData.code === 0 && putData.purchaseorder) return putData.purchaseorder;
+			if (putData.code === 0 && putData.purchaseorder)
+				return putData.purchaseorder;
 		}
 	}
 
