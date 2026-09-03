@@ -48,6 +48,11 @@ export default function POItemTable({
 		[lines],
 	);
 
+	const totalQty = useMemo(
+		() => lines.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0),
+		[lines],
+	);
+
 	// The trailing blank row is scaffolding, not a line — leave it out of counts.
 	const filledCount = useMemo(
 		() => lines.filter((l) => l.item_id || l.isFreeText).length,
@@ -55,6 +60,7 @@ export default function POItemTable({
 	);
 
 	return (
+		<div>
 		<div className="bg-surface border border-line rounded overflow-visible mr-[86px]">
 			<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
 				<div className="font-bold text-[14px] text-body">Item Table</div>
@@ -113,14 +119,25 @@ export default function POItemTable({
 				/>
 			)}
 
-			<div className="flex gap-3 px-[18px] py-4 flex-wrap">
-				<button
-					onClick={onOpenBulk}
-					className="flex items-center gap-[7px] h-9 px-3.5 rounded border border-brand-border bg-brand-bg text-link font-bold text-[13px] cursor-pointer">
-					<PlusCircle />
-					Add Items in Bulk
-				</button>
+		</div>
+
+		{/* Outside the table: the action is not a row, and the running total
+		    belongs beneath the column it totals. */}
+		<div className="mr-[86px] mt-3 flex items-center justify-between gap-3 flex-wrap">
+			<button
+				onClick={onOpenBulk}
+				className="flex items-center gap-[7px] h-9 px-3.5 rounded border border-brand-border bg-brand-bg text-link font-bold text-[13px] cursor-pointer">
+				<PlusCircle />
+				Add Items in Bulk
+			</button>
+
+			<div className="text-[13px] text-body-3">
+				Total Quantity{' '}
+				<span className="num font-bold text-heading text-[15px] ml-1.5">
+					{totalQty.toLocaleString('en-IN')}
+				</span>
 			</div>
+		</div>
 		</div>
 	);
 }
@@ -272,11 +289,18 @@ function POLineRow({
 			    data column. Absolute against the row keeps it centred on that row
 			    whatever its height. The trailing blank row has nothing to remove,
 			    and deleting it would only make the table grow a fresh one. */}
-			{/* Overflow — only a real Zoho item has details to show. */}
+			{/* Overflow — only a real Zoho item has details to show.
+
+			    The wrapper's -translate-y-1/2 is a transform, which creates a
+			    stacking context. That confined the menu's own z-index to this
+			    wrapper, so later rows painted straight over it; raising the
+			    wrapper is what actually lifts the menu. */}
 			{line.item_id && (
 				<div
 					ref={menuRef}
-					className="absolute right-[-76px] top-1/2 -translate-y-1/2">
+					className={`absolute right-[-76px] top-1/2 -translate-y-1/2 ${
+						menuOpen ? 'z-50' : 'z-10'
+					}`}>
 					<button
 						onClick={() => setMenuOpen((v) => !v)}
 						title="More"
