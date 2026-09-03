@@ -151,6 +151,10 @@ function App() {
 					<Route path="/lost-sales" element={<LostSalesListPage />} />
 					<Route path="/lost-sales/new" element={<LostSaleFormPage />} />
 					<Route
+						path="/lost-sales/:id/edit"
+						element={<LostSaleFormPage />}
+					/>
+					<Route
 						path="/reorder-suggestions"
 						element={<ReorderSuggestionsPage />}
 					/>

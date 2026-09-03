@@ -51,6 +51,20 @@ export async function listLostSales({ from, to, itemId } = {}) {
 	return data.lost_sales || [];
 }
 
+/**
+ * `originalDate` is the date the record is stored under, which is not
+ * necessarily the new one — the key embeds the month, so the endpoint needs
+ * both to move the record when the date changes.
+ */
+export async function updateLostSale(record) {
+	const data = await call('lost-sales-update', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(record),
+	});
+	return data.lost_sale;
+}
+
 export async function deleteLostSale({ id, date }) {
 	const params = new URLSearchParams({ id, date });
 	return call(`lost-sales-delete?${params.toString()}`, { method: 'DELETE' });

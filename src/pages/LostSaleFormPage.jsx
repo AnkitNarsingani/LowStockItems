@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getCustomers, getAllItems } from '../components/ZohoAPI';
-import { createLostSale } from '../lib/lostSales';
+import { createLostSale, updateLostSale, listLostSales } from '../lib/lostSales';
 import Field from '../components/Field';
 import ItemPicker from '../components/po/ItemPicker';
 import CustomerPicker from '../components/lost/CustomerPicker';
@@ -58,6 +58,14 @@ function rowFromItem(item) {
 
 export default function LostSaleFormPage() {
 	const navigate = useNavigate();
+	const { id: editId } = useParams();
+	const location = useLocation();
+	const isEditing = !!editId;
+
+	// The record being edited, and the date it is stored under — the blob key
+	// embeds the month, so the original is needed to move it if the date changes.
+	const [original, setOriginal] = useState(null);
+	const [loadingRecord, setLoadingRecord] = useState(false);
 
 	const [customers, setCustomers] = useState([]);
 	const [customersLoading, setCustomersLoading] = useState(true);
@@ -78,6 +86,68 @@ export default function LostSaleFormPage() {
 	const [errors, setErrors] = useState({});
 	const [saving, setSaving] = useState(false);
 	const [result, setResult] = useState(null);
+
+	// ─── Load the record being edited ─────────────────────────────────────────
+	// The list hands it over through router state; a direct link or a refresh
+	// has none, so fall back to fetching and finding it.
+	useEffect(() => {
+		if (!isEditing) return undefined;
+		let cancelled = false;
+
+		const apply = (rec) => {
+			if (cancelled || !rec) return;
+			setOriginal(rec);
+			setCustomerId(rec.customer_id || null);
+			setCustomerName(rec.customer_name || '');
+			setDate(rec.date);
+			setNote(rec.note || '');
+			setRows([
+				{
+					key: nextKey(),
+					item_id: rec.item_id || null,
+					name: rec.item_name || '',
+					sku: '',
+					isFreeText: !!rec.is_free_text,
+					purchase_rate: 0,
+					available_stock: 0,
+					stock_on_hand: 0,
+					qty: String(rec.qty_wanted ?? ''),
+				},
+			]);
+		};
+
+		const handed = location.state?.record;
+		if (handed && handed.id === editId) {
+			apply(handed);
+			return undefined;
+		}
+
+		setLoadingRecord(true);
+		listLostSales()
+			.then((all) => {
+				const found = all.find((r) => r.id === editId);
+				if (!found) {
+					if (!cancelled) {
+						setResult({
+							success: false,
+							message: 'That lost sale no longer exists.',
+						});
+					}
+					return;
+				}
+				apply(found);
+			})
+			.catch(
+				(e) =>
+					!cancelled &&
+					setResult({ success: false, message: e.message || 'Could not load it.' }),
+			)
+			.finally(() => !cancelled && setLoadingRecord(false));
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isEditing, editId, location.state]);
 
 	// ─── Reference data ───────────────────────────────────────────────────────
 	useEffect(() => {
@@ -179,8 +249,15 @@ export default function LostSaleFormPage() {
 
 		setSaving(true);
 		try {
-			for (const r of toSave) {
-				await createLostSale({
+			let message;
+
+			if (isEditing) {
+				// Editing works on the single record that was opened, so only the
+				// first row is written back.
+				const r = toSave[0];
+				await updateLostSale({
+					id: editId,
+					original_date: original?.date ?? date,
 					date,
 					customer_id: customerId,
 					customer_name: customerName.trim(),
@@ -190,17 +267,28 @@ export default function LostSaleFormPage() {
 					qty_wanted: Number(r.qty),
 					note: note.trim() || null,
 				});
+				message = `Updated the lost sale for ${customerName.trim()}.`;
+			} else {
+				for (const r of toSave) {
+					await createLostSale({
+						date,
+						customer_id: customerId,
+						customer_name: customerName.trim(),
+						item_id: r.isFreeText ? null : r.item_id,
+						item_name: r.name,
+						is_free_text: !!r.isFreeText,
+						qty_wanted: Number(r.qty),
+						note: note.trim() || null,
+					});
+				}
+				message = `Recorded ${toSave.length} lost sale${
+					toSave.length === 1 ? '' : 's'
+				} for ${customerName.trim()}.`;
 			}
+
 			navigate('/lost-sales', {
 				replace: true,
-				state: {
-					lostSaleResult: {
-						success: true,
-						message: `Recorded ${toSave.length} lost sale${
-							toSave.length === 1 ? '' : 's'
-						} for ${customerName.trim()}.`,
-					},
-				},
+				state: { lostSaleResult: { success: true, message } },
 			});
 		} catch (e) {
 			setResult({ success: false, message: e.message || 'Could not save.' });
@@ -224,7 +312,7 @@ export default function LostSaleFormPage() {
 					</button>
 					<div className="flex items-center gap-2.5 min-w-0">
 					<h1 className="text-[21px] text-heading font-normal truncate m-0">
-						Record a lost sale
+						{isEditing ? 'Edit lost sale' : 'Record a lost sale'}
 					</h1>
 					{filledRows.length > 0 && (
 						<span className="text-[12px] font-bold text-link bg-brand-bg rounded-[20px] px-[11px] py-[3px] flex-shrink-0">
@@ -247,6 +335,14 @@ export default function LostSaleFormPage() {
 
 			{/* Body */}
 			<div className="flex-1 overflow-y-auto overflow-x-hidden">
+				{loadingRecord && (
+					<div className="px-8 pt-5">
+						<div className="px-4 py-2.5 text-[13px] text-body-3 bg-surface-2 border border-line rounded">
+							Loading the record…
+						</div>
+					</div>
+				)}
+
 				{result && (
 					<div className="px-8 pt-5">
 						<div className="flex items-center justify-between px-4 py-2.5 text-[13px] rounded border bg-red-50 border-danger-border text-danger">
@@ -421,7 +517,7 @@ export default function LostSaleFormPage() {
 					{saving && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
-					{saving ? 'Saving…' : 'Save lost sale'}
+					{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Save lost sale'}
 				</button>
 				<button
 					onClick={() => navigate('/lost-sales')}

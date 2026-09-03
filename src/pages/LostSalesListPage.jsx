@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { listLostSales, deleteLostSale } from '../lib/lostSales';
 import Pagination from '../components/Pagination';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const COLS = '110px minmax(0,1.4fr) minmax(0,1.6fr) 110px minmax(0,1.4fr) 80px';
 
@@ -26,6 +27,8 @@ export default function LostSalesListPage() {
 	const [banner, setBanner] = useState(null);
 	const [search, setSearch] = useState('');
 	const [deletingId, setDeletingId] = useState(null);
+	// The record awaiting delete confirmation.
+	const [pendingDelete, setPendingDelete] = useState(null);
 	const [page, setPage] = useState(0);
 	const [pageSize, setPageSize] = useState(50);
 
@@ -74,13 +77,17 @@ export default function LostSalesListPage() {
 		[filtered],
 	);
 
-	const handleDelete = async (rec) => {
+	const confirmDelete = async () => {
+		const rec = pendingDelete;
+		if (!rec) return;
 		setDeletingId(rec.id);
 		try {
 			await deleteLostSale({ id: rec.id, date: rec.date });
 			setRecords((prev) => prev.filter((r) => r.id !== rec.id));
+			setPendingDelete(null);
 		} catch (e) {
 			setError(e.message || 'Could not delete that record.');
+			setPendingDelete(null);
 		} finally {
 			setDeletingId(null);
 		}
@@ -200,14 +207,30 @@ export default function LostSalesListPage() {
 							<div className="text-muted-2 truncate" title={r.note || ''}>
 								{r.note || '—'}
 							</div>
-							<div className="flex justify-end">
+							<div className="flex justify-end items-center gap-1.5">
 								<button
-									onClick={() => handleDelete(r)}
+									onClick={() =>
+										navigate(`/lost-sales/${r.id}/edit`, { state: { record: r } })
+									}
+									title="Edit this record"
+									aria-label={`Edit lost sale for ${r.customer_name || 'customer'}`}
+									className="w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-surface-2 hover:text-link">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M12 20h9" />
+										<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+									</svg>
+								</button>
+								<button
+									onClick={() => setPendingDelete(r)}
 									disabled={deletingId === r.id}
 									title="Delete this record"
-									className="w-6 h-6 rounded-full border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50 disabled:opacity-40">
-									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-										<path d="M6 6l12 12M18 6L6 18" />
+									aria-label={`Delete lost sale for ${r.customer_name || 'customer'}`}
+									className="w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50 disabled:opacity-40">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M3 6h18" />
+										<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+										<path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+										<path d="M10 11v6M14 11v6" />
 									</svg>
 								</button>
 							</div>
@@ -215,6 +238,16 @@ export default function LostSalesListPage() {
 					))
 				)}
 			</div>
+
+			{pendingDelete && (
+				<ConfirmDialog
+					title="Delete this lost sale?"
+					body={`${pendingDelete.item_name || 'This item'} × ${pendingDelete.qty_wanted} for ${pendingDelete.customer_name || 'an unnamed customer'} on ${fmtDate(pendingDelete.date)}. This cannot be undone, and lost sales cannot be reconstructed from Zoho.`}
+					busy={deletingId === pendingDelete.id}
+					onConfirm={confirmDelete}
+					onCancel={() => setPendingDelete(null)}
+				/>
+			)}
 
 			{!loading && filtered.length > 0 && (
 				<div className="mt-3.5">
