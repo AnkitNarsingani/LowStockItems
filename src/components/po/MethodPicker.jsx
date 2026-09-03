@@ -6,7 +6,9 @@ import {
 	SALES_WINDOW_DAYS,
 	deriveRow,
 	allocate,
+	emitStockoutSignals,
 } from '../../lib/allocation';
+import { recordStockoutSignals } from '../../lib/stockoutSignals';
 import {
 	getSalesForPeriod,
 	calculateBundleQuantities,
@@ -222,6 +224,15 @@ export default function MethodPicker({ lines, onApply }) {
 				window: win,
 				total: rows.reduce((s, r) => s + r.qty, 0),
 			});
+
+			// §A.5: evaluating a selection is the moment the stockout-group
+			// condition can be observed — it depends on the whole group's stock
+			// levels right now, which Zoho does not retain. Recorded on every
+			// method, deduplicated per item per day by the endpoint, and
+			// deliberately not awaited: this is a side effect of previewing and
+			// must never delay or break it.
+			const signalRows = allocatable.map((l) => deriveRow(l, 0, false));
+			recordStockoutSignals(emitStockoutSignals(signalRows));
 		} catch (e) {
 			setError(e.message || 'Preview failed.');
 		} finally {
