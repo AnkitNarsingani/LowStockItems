@@ -9,6 +9,16 @@ const STORE_NAME = 'lost-sales';
 function storeFor() {
 	// Required inside the handler, not at module load. See note above.
 	const { getStore } = require('@netlify/blobs');
+
+	// Netlify injects NETLIFY_BLOBS_CONTEXT automatically, but only for deploys
+	// its own build system produced. A prebuilt CLI upload does not get it, so
+	// fall back to explicit credentials when they are configured.
+	if (!process.env.NETLIFY_BLOBS_CONTEXT) {
+		const siteID = process.env.BLOBS_SITE_ID || process.env.SITE_ID;
+		const token = process.env.NETLIFY_BLOBS_TOKEN;
+		if (siteID && token) return getStore({ name: STORE_NAME, siteID, token });
+	}
+
 	return getStore(STORE_NAME);
 }
 
