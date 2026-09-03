@@ -1,27 +1,35 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import { SEED_SUGGESTIONS, subLineFor } from '../lib/reorderSeed';
+import { getAllItems, getSalesForPeriod } from '../components/ZohoAPI';
+import { listLostSales } from '../lib/lostSales';
+import {
+	computeSuggestion,
+	subLineFor,
+	DEFAULT_SETTINGS,
+} from '../lib/reorderEngine';
 import UndoToast from '../components/UndoToast';
 
 const COLS = 'minmax(0,2.4fr) minmax(0,1.6fr) minmax(0,1.6fr) 130px';
 const UNDO_WINDOW = 5000;
+const SALES_WINDOW_DAYS = 365;
 
 /**
- * Reorder-point suggestion review.
+ * Reorder-point suggestion review — Engine B.
  *
- * A decision takes the row off the list straight away and raises a countdown
- * toast; until the timer runs out the decision can still be taken back, which
- * puts the row back where it was. The list therefore only ever shows what still
- * needs attention.
+ * Suggestions are computed on demand rather than on load: each item costs one
+ * sales-report call, so running over a large catalogue is a deliberate act.
  *
- * The engine behind this (Engine B) does not exist yet; rows come from
- * src/lib/reorderSeed.js. Approve and reject are local state only — nothing is
- * sent to Zoho from this screen.
+ * A decision takes the row off the list and raises a countdown toast; until
+ * the timer runs out it can be taken back. Nothing is written to Zoho — see
+ * the note at the foot of the page.
  */
 export default function ReorderSuggestionsPage() {
-	// pending | approved | rejected, keyed by item_id.
-	const [status, setStatus] = useState(() =>
-		Object.fromEntries(SEED_SUGGESTIONS.map((s) => [s.item_id, 'pending'])),
-	);
+	const [suggestions, setSuggestions] = useState(null);
+	const [status, setStatus] = useState({});
+	const [busy, setBusy] = useState(false);
+	const [progress, setProgress] = useState(null);
+	const [error, setError] = useState(null);
+	const [scanned, setScanned] = useState(0);
+
 	const [toasts, setToasts] = useState([]);
 	const toastSeq = useRef(0);
 
@@ -31,7 +39,6 @@ export default function ReorderSuggestionsPage() {
 
 	const undo = useCallback(
 		(toast) => {
-			// Restore exactly what those rows were before the decision.
 			setStatus((prev) => ({ ...prev, ...toast.previous }));
 			dismiss(toast.tid);
 		},
@@ -41,6 +48,94 @@ export default function ReorderSuggestionsPage() {
 	const pushToast = (previous, label) => {
 		const tid = ++toastSeq.current;
 		setToasts((list) => [...list, { tid, previous, label }]);
+	};
+
+	const compute = async () => {
+		setBusy(true);
+		setError(null);
+		setSuggestions(null);
+		setToasts([]);
+
+		try {
+			// Lost sales are the whole reason this engine can run before stock
+			// history exists — they are the only evidence of demand that went
+			// unmet. A failure here is not fatal; it just means no correction.
+			let lostByItem = new Map();
+			try {
+				const lost = await listLostSales();
+				for (const r of lost) {
+					if (!r.item_id) continue;
+					const cur = lostByItem.get(r.item_id) || { units: 0, count: 0 };
+					cur.units += Number(r.qty_wanted) || 0;
+					cur.count += 1;
+					lostByItem.set(r.item_id, cur);
+				}
+			} catch {
+				lostByItem = new Map();
+			}
+
+			const items = await getAllItems();
+
+			// Only items that could produce a suggestion are worth a sales call:
+			// one that has neither a reorder point nor a max capacity has nothing
+			// to compare a proposal against.
+			const candidates = items.filter(
+				(i) =>
+					Number(i.reorder_level) > 0 ||
+					Number(i.cf_maximum_capacity) > 0 ||
+					lostByItem.has(i.item_id),
+			);
+
+			setScanned(candidates.length);
+			setProgress({ done: 0, total: candidates.length });
+
+			const out = [];
+			for (let i = 0; i < candidates.length; i++) {
+				const item = candidates[i];
+				const sold = await getSalesForPeriod(item.item_id, SALES_WINDOW_DAYS);
+				const lost = lostByItem.get(item.item_id) || { units: 0, count: 0 };
+
+				const suggestion = computeSuggestion(
+					{
+						item_id: item.item_id,
+						item_name: item.name,
+						current_rop: Number(item.reorder_level) || 0,
+						current_max: Number(item.cf_maximum_capacity) || 0,
+						sold,
+						lost_units: lost.units,
+						lost_sales_count: lost.count,
+						// No nightly stock snapshot yet, so no censoring correction.
+						days_in_stock: null,
+						history_days: item.created_time
+							? Math.floor(
+									(Date.now() - new Date(item.created_time).getTime()) / 86400000,
+								)
+							: null,
+						lead_time: null,
+						order_cycle_days: null,
+					},
+					DEFAULT_SETTINGS,
+				);
+
+				if (suggestion) out.push(suggestion);
+
+				setProgress({ done: i + 1, total: candidates.length });
+				if (i < candidates.length - 1) {
+					await new Promise((r) => setTimeout(r, 150));
+				}
+			}
+
+			// Biggest movers first — those are the ones worth a decision.
+			out.sort((a, b) => magnitude(b) - magnitude(a));
+
+			setSuggestions(out);
+			setStatus(Object.fromEntries(out.map((s) => [s.item_id, 'pending'])));
+		} catch (e) {
+			setError(e.message || 'Could not compute suggestions.');
+		} finally {
+			setBusy(false);
+			setProgress(null);
+		}
 	};
 
 	const decide = (suggestion, next) => {
@@ -53,9 +148,7 @@ export default function ReorderSuggestionsPage() {
 	};
 
 	const approveAll = () => {
-		// A rejected row stays rejected — "approve all" should not quietly
-		// reverse a decision already made.
-		const targets = SEED_SUGGESTIONS.filter(
+		const targets = (suggestions || []).filter(
 			(s) => status[s.item_id] === 'pending',
 		);
 		if (targets.length === 0) return;
@@ -65,25 +158,14 @@ export default function ReorderSuggestionsPage() {
 			for (const s of targets) next[s.item_id] = 'approved';
 			return next;
 		});
-
-		// One toast per item rather than a single "Approving N" summary, so each
-		// can be undone on its own.
 		for (const s of targets) {
 			pushToast({ [s.item_id]: 'pending' }, `Approving ${s.item_name}`);
 		}
 	};
 
-	const reset = () => {
-		setStatus(
-			Object.fromEntries(SEED_SUGGESTIONS.map((s) => [s.item_id, 'pending'])),
-		);
-		setToasts([]);
-	};
-
-	// Only what still needs a decision stays on the list.
 	const visible = useMemo(
-		() => SEED_SUGGESTIONS.filter((s) => status[s.item_id] === 'pending'),
-		[status],
+		() => (suggestions || []).filter((s) => status[s.item_id] === 'pending'),
+		[suggestions, status],
 	);
 
 	const counts = useMemo(() => {
@@ -106,13 +188,56 @@ export default function ReorderSuggestionsPage() {
 					Reorder point suggestions
 				</div>
 				<div className="flex-1" />
+
+				{suggestions && (
+					<button
+						onClick={compute}
+						disabled={busy}
+						className="h-9 px-[13px] rounded border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer disabled:opacity-50">
+						Recompute
+					</button>
+				)}
 				<button
-					onClick={approveAll}
-					disabled={counts.pending === 0}
-					className="h-9 px-[18px] rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer shadow-[0_1px_2px_rgba(64,141,251,.35)] disabled:opacity-40 disabled:cursor-not-allowed">
-					Approve all
+					onClick={suggestions ? approveAll : compute}
+					disabled={busy || (suggestions && counts.pending === 0)}
+					className="h-9 px-[18px] rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer shadow-[0_1px_2px_rgba(64,141,251,.35)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+					{busy && (
+						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+					)}
+					{busy
+						? 'Computing…'
+						: suggestions
+							? 'Approve all'
+							: 'Compute suggestions'}
 				</button>
 			</div>
+
+			{progress && (
+				<div className="mb-4 max-w-[760px]">
+					<div className="flex justify-between items-center mb-1.5">
+						<span className="text-[12.5px] text-muted">
+							Reading 365-day sales for each item…
+						</span>
+						<span className="text-[12.5px] font-bold text-body-3 num">
+							{progress.done} / {progress.total}
+						</span>
+					</div>
+					<div className="relative w-full h-[3px] bg-line-4 rounded-full overflow-hidden">
+						<div
+							className="h-full bg-brand rounded-full transition-all"
+							style={{
+								width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`,
+							}}
+						/>
+					</div>
+				</div>
+			)}
+
+			{error && (
+				<div className="px-4 py-2.5 mb-4 rounded border bg-red-50 border-danger-border text-danger text-[13px] max-w-[760px]">
+					{error}
+				</div>
+			)}
 
 			{/* Table */}
 			<div className="bg-surface border border-line rounded overflow-hidden">
@@ -125,20 +250,29 @@ export default function ReorderSuggestionsPage() {
 					<div className="text-right">DECISION</div>
 				</div>
 
-				{visible.length === 0 ? (
+				{suggestions === null ? (
 					<div className="px-5 py-14 text-center">
 						<div className="text-[14px] font-bold text-heading mb-1">
-							All suggestions reviewed
+							Nothing computed yet
 						</div>
-						<p className="text-[13px] text-muted-2 m-0 mb-4">
-							{counts.approved} approved
-							{counts.rejected > 0 ? `, ${counts.rejected} rejected` : ''}.
+						<p className="text-[13px] text-muted-2 m-0 max-w-[520px] mx-auto leading-relaxed">
+							Suggestions are worked out from each item’s trailing 365-day sales
+							and the lost sales you have logged. That is one report call per
+							item, so it runs only when you ask.
 						</p>
-						<button
-							onClick={reset}
-							className="h-9 px-4 rounded border border-line-2 bg-surface text-body-2 font-bold text-[12.5px] cursor-pointer hover:bg-surface-2">
-							Start over
-						</button>
+					</div>
+				) : visible.length === 0 ? (
+					<div className="px-5 py-14 text-center">
+						<div className="text-[14px] font-bold text-heading mb-1">
+							{suggestions.length === 0
+								? 'No changes worth making'
+								: 'All suggestions reviewed'}
+						</div>
+						<p className="text-[13px] text-muted-2 m-0">
+							{suggestions.length === 0
+								? `Checked ${scanned} item${scanned === 1 ? '' : 's'}; every reorder point and max capacity is already close enough to demand.`
+								: `${counts.approved} approved${counts.rejected > 0 ? `, ${counts.rejected} rejected` : ''}.`}
+						</p>
 					</div>
 				) : (
 					visible.map((s) => (
@@ -146,7 +280,6 @@ export default function ReorderSuggestionsPage() {
 							key={s.item_id}
 							className="grid px-5 py-[15px] border-b border-line-4 items-center bg-surface"
 							style={{ gridTemplateColumns: COLS }}>
-							{/* Item */}
 							<div className="pr-4 min-w-0">
 								<div className="font-bold text-[14px] text-body truncate">
 									{s.item_name}
@@ -161,7 +294,6 @@ export default function ReorderSuggestionsPage() {
 							<Pair prev={s.current_rop} next={s.proposed_rop} />
 							<Pair prev={s.current_max} next={s.proposed_max} />
 
-							{/* Decision */}
 							<div className="flex items-center justify-end gap-2">
 								<button
 									onClick={() => decide(s, 'approved')}
@@ -187,14 +319,32 @@ export default function ReorderSuggestionsPage() {
 				)}
 			</div>
 
-			<div className="mt-4 text-[13px] text-muted">
+			<div className="flex justify-between items-center mt-4 text-[13px] text-muted gap-4 flex-wrap">
 				<span className="num">
-					{counts.approved} approved · {counts.pending} pending
-					{counts.rejected > 0 ? ` · ${counts.rejected} rejected` : ''}
+					{suggestions
+						? `${counts.approved} approved · ${counts.pending} pending${counts.rejected > 0 ? ` · ${counts.rejected} rejected` : ''}`
+						: ''}
 				</span>
 			</div>
 
-			{/* Decision toasts — bottom right, newest lowest, each with its own timer. */}
+			{/* The decisions are not yet written anywhere, and saying so is the
+			    difference between a review screen and a misleading one. */}
+			{suggestions && suggestions.length > 0 && (
+				<div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded border border-warn-border bg-warn-bg text-warn-2 max-w-[760px]">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mt-px">
+						<circle cx="12" cy="12" r="9" />
+						<path d="M12 8v5M12 16h.01" />
+					</svg>
+					<div className="text-[12.5px] leading-relaxed">
+						<span className="font-bold">Approving does not update Zoho yet.</span>{' '}
+						The figures are real, but write-back is not built — decisions are
+						kept only until you leave this page. Confidence reads low on every
+						row because there is no daily stock history to correct demand for
+						the days an item was unavailable.
+					</div>
+				</div>
+			)}
+
 			{toasts.length > 0 && (
 				<div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 items-end pointer-events-none max-h-[calc(100vh-100px)] overflow-y-auto">
 					{toasts.map((t) => (
@@ -213,9 +363,16 @@ export default function ReorderSuggestionsPage() {
 	);
 }
 
+/** How far a suggestion moves things, for ordering the list. */
+function magnitude(s) {
+	const rop = s.proposed_rop == null ? 0 : Math.abs(s.proposed_rop - s.current_rop);
+	const max = s.proposed_max == null ? 0 : Math.abs(s.proposed_max - s.current_max);
+	return rop + max;
+}
+
 /**
  * current → proposed. The new value is emphasised in blue when it moves and
- * left grey when it does not, so an unchanged row reads as "nothing to do".
+ * left grey when it does not, so an unchanged value reads as "nothing to do".
  * The delta is green going up, red going down.
  */
 function Pair({ prev, next }) {
