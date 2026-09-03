@@ -32,8 +32,8 @@ export default function POItemTable({
 	// would size each row's columns differently and the table would step out of
 	// alignment. Flooring every track at 0 makes the split purely proportional.
 	const cols = showRate
-		? 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr) minmax(0,0.85fr) minmax(0,1fr)'
-		: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr)';
+		? 'minmax(0,2.1fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,0.85fr) minmax(0,1fr)'
+		: 'minmax(0,2.1fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.85fr)';
 
 	const grandTotal = useMemo(
 		() =>
@@ -65,6 +65,9 @@ export default function POItemTable({
 				className="grid bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em]"
 				style={{ gridTemplateColumns: cols }}>
 				<div className="px-3.5 py-2.5 border-r border-line min-w-0">ITEM DETAILS</div>
+				<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
+					STOCK ON HAND
+				</div>
 				<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
 					MAX CAPACITY
 				</div>
@@ -173,6 +176,18 @@ function POLineRow({
 						error={itemsError}
 						onPick={(item) => onPickItem(line.key, item)}
 					/>
+				)}
+			</div>
+
+			{/* STOCK ON HAND — the same figure the allocation maths reads, so the
+			    column and the quantity it produces can never disagree. */}
+			<div className="num px-3.5 py-3 border-r border-line text-right text-[13.5px] min-w-0">
+				{line.isFreeText ? (
+					<span className="text-muted-2">—</span>
+				) : (
+					<span className={onHand > 0 ? 'text-ok font-bold' : 'text-danger font-bold'}>
+						{onHand}
+					</span>
 				)}
 			</div>
 
