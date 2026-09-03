@@ -13,7 +13,6 @@ import { calculateBundleQuantities, simpleQuantityFor } from '../ZohoAPI';
 import { getSales, peekSales, missingFor } from '../../lib/salesCache';
 import Toggle from './Toggle';
 import ModeSelect from './ModeSelect';
-import Checkbox from '../Checkbox';
 import Field from '../Field';
 
 // Re-exported so existing imports keep working.
@@ -349,36 +348,17 @@ export default function MethodPicker({ lines, onApply }) {
 					</label>
 				</div>
 
+				{/* The same dropdown either way — it just ticks rather than picks
+				    when comparing, so the control does not move or change shape
+				    underneath you when the toggle is flipped. */}
 				{compare ? (
-					<div className="border border-line-2 rounded overflow-hidden">
-						{METHOD_LIST.map((m) => {
-							const on = compareIds.includes(m.id);
-							return (
-								<div
-									key={m.id}
-									onClick={() => toggleCompared(m.id)}
-									className={`flex items-start gap-2.5 px-3 py-2 cursor-pointer border-b border-line-4 last:border-b-0 ${
-										on ? 'bg-brand-bg' : 'bg-surface hover:bg-surface-2'
-									}`}>
-									<div className="pt-0.5">
-										<Checkbox
-											checked={on}
-											size={16}
-											label={m.name}
-											onChange={() => toggleCompared(m.id)}
-										/>
-									</div>
-									<div className="min-w-0">
-										<div className="text-[13px] font-bold text-body">
-											<span className="num text-muted mr-1.5">{m.n}</span>
-											{m.name}
-										</div>
-										<div className="text-[11px] text-muted-2">{m.desc}</div>
-									</div>
-								</div>
-							);
-						})}
-					</div>
+					<ModeSelect
+						multiple
+						options={METHOD_LIST}
+						values={compareIds}
+						onChange={toggleCompared}
+						placeholder="Select methods to compare"
+					/>
 				) : (
 					<ModeSelect
 						options={METHOD_LIST}

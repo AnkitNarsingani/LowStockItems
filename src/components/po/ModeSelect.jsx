@@ -1,17 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
+import Checkbox from '../Checkbox';
 
 /**
  * Quantity-mode dropdown. A list rather than a stack of cards, so the inputs a
  * method needs sit immediately under the selection instead of far down the form.
  *
  * options: [{ id, n, name, desc, existing }]
+ *
+ * With `multiple`, the same dropdown ticks several methods instead of picking
+ * one: `values` holds the chosen ids and `onChange` is a toggle. The panel then
+ * stays open while you tick, since choosing one is rarely the whole intent.
  */
-export default function ModeSelect({ options, value, onChange, placeholder }) {
+export default function ModeSelect({
+	options,
+	value,
+	values,
+	onChange,
+	placeholder,
+	multiple = false,
+}) {
 	const [open, setOpen] = useState(false);
 	const [active, setActive] = useState(0);
 	const wrapRef = useRef(null);
 	const listRef = useRef(null);
 
+	const chosen = multiple ? (values ?? []) : [];
+	const isChosen = (o) => chosen.includes(o.id);
 	const selected = options.find((o) => o.id === value);
 
 	useEffect(() => {
@@ -23,12 +37,18 @@ export default function ModeSelect({ options, value, onChange, placeholder }) {
 	}, []);
 
 	// Open on the current selection so the arrows start from the right place.
+	// Multi-select starts at the first thing already ticked, for the same reason.
 	useEffect(() => {
 		if (open) {
-			const i = options.findIndex((o) => o.id === value);
+			const i = multiple
+				? options.findIndex((o) => (values ?? []).includes(o.id))
+				: options.findIndex((o) => o.id === value);
 			setActive(i >= 0 ? i : 0);
 		}
-	}, [open, options, value]);
+		// `values` is deliberately absent: re-running this on every tick would
+		// throw the highlight back to the top of the list mid-selection.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open, options, value, multiple]);
 
 	useEffect(() => {
 		if (!open || !listRef.current) return;
@@ -39,7 +59,8 @@ export default function ModeSelect({ options, value, onChange, placeholder }) {
 
 	const pick = (o) => {
 		onChange(o.id);
-		setOpen(false);
+		// Ticking one of several is rarely the end of the job, so the panel stays.
+		if (!multiple) setOpen(false);
 	};
 
 	const onKeyDown = (e) => {
@@ -58,7 +79,7 @@ export default function ModeSelect({ options, value, onChange, placeholder }) {
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
 			setActive((i) => (i - 1 + options.length) % options.length);
-		} else if (e.key === 'Enter') {
+		} else if (e.key === 'Enter' || (multiple && e.key === ' ')) {
 			e.preventDefault();
 			const o = options[active];
 			if (o) pick(o);
@@ -75,7 +96,23 @@ export default function ModeSelect({ options, value, onChange, placeholder }) {
 				className={`w-full min-h-[38px] px-3 py-2 border rounded bg-surface flex items-center justify-between gap-2 cursor-pointer text-left ${
 					open ? 'border-brand ring-2 ring-brand/15' : 'border-line-2'
 				}`}>
-				{selected ? (
+				{multiple ? (
+					chosen.length === 0 ? (
+						<span className="text-[13.5px] text-muted-3">{placeholder}</span>
+					) : (
+						<span className="min-w-0">
+							<span className="block text-[13px] font-bold text-body truncate">
+								{chosen.length} method{chosen.length !== 1 ? 's' : ''} selected
+							</span>
+							<span className="block text-[11px] text-muted truncate">
+								{options
+									.filter(isChosen)
+									.map((o) => `${o.n}. ${o.name}`)
+									.join(' · ')}
+							</span>
+						</span>
+					)
+				) : selected ? (
 					<span className="min-w-0">
 						<span className="block text-[13px] font-bold text-body truncate">
 							{selected.n}. {selected.name}
@@ -105,38 +142,59 @@ export default function ModeSelect({ options, value, onChange, placeholder }) {
 				<div
 					ref={listRef}
 					role="listbox"
+					aria-multiselectable={multiple || undefined}
 					className="absolute top-[calc(100%+4px)] left-0 right-0 bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.16)] z-40 overflow-auto max-h-[320px]">
 					{options.map((o, i) => {
 						const isActive = i === active;
+						// Solid brand would swallow a ticked checkbox, which is the one
+						// thing a multi-select row has to keep showing — so the
+						// highlight there is a tint rather than a fill.
+						const dark = isActive && !multiple;
 						return (
 							<div
 								key={o.id}
 								data-idx={i}
 								role="option"
-								aria-selected={o.id === value}
+								aria-selected={multiple ? isChosen(o) : o.id === value}
 								onMouseEnter={() => setActive(i)}
 								onClick={() => pick(o)}
-								className={`px-3.5 py-2.5 cursor-pointer border-b border-line-4 last:border-b-0 ${
-									isActive ? 'bg-brand text-white' : 'text-body'
+								className={`px-3.5 py-2.5 cursor-pointer border-b border-line-4 last:border-b-0 flex items-start gap-2.5 ${
+									dark
+										? 'bg-brand text-white'
+										: isActive
+											? 'bg-brand-bg text-body'
+											: 'text-body'
 								}`}>
-								<div className="flex items-center gap-2 flex-wrap">
-									<span className="text-[13px] font-bold">
-										{o.n}. {o.name}
-									</span>
-									{o.existing && (
-										<span
-											className={`text-[9.5px] font-bold uppercase tracking-wide rounded px-1.5 py-px border ${
-												isActive
-													? 'bg-white/20 text-white border-white/30'
-													: 'bg-surface-2 text-muted border-line'
-											}`}>
-											existing
+								{multiple && (
+									<div className="pt-0.5 flex-shrink-0">
+										<Checkbox
+											checked={isChosen(o)}
+											size={16}
+											label={o.name}
+											onChange={() => pick(o)}
+										/>
+									</div>
+								)}
+								<div className="min-w-0">
+									<div className="flex items-center gap-2 flex-wrap">
+										<span className="text-[13px] font-bold">
+											{o.n}. {o.name}
 										</span>
-									)}
-								</div>
-								<div
-									className={`text-[11px] mt-0.5 ${isActive ? 'text-white/85' : 'text-muted'}`}>
-									{o.desc}
+										{o.existing && (
+											<span
+												className={`text-[9.5px] font-bold uppercase tracking-wide rounded px-1.5 py-px border ${
+													dark
+														? 'bg-white/20 text-white border-white/30'
+														: 'bg-surface-2 text-muted border-line'
+												}`}>
+												existing
+											</span>
+										)}
+									</div>
+									<div
+										className={`text-[11px] mt-0.5 ${dark ? 'text-white/85' : 'text-muted'}`}>
+										{o.desc}
+									</div>
 								</div>
 							</div>
 						);
