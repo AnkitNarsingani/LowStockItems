@@ -32,8 +32,8 @@ export default function POItemTable({
 	// would size each row's columns differently and the table would step out of
 	// alignment. Flooring every track at 0 makes the split purely proportional.
 	const cols = showRate
-		? 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr) minmax(0,0.85fr) minmax(0,1fr) 44px'
-		: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr) 44px';
+		? 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr) minmax(0,0.85fr) minmax(0,1fr)'
+		: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,0.85fr)';
 
 	const grandTotal = useMemo(
 		() =>
@@ -51,7 +51,7 @@ export default function POItemTable({
 	);
 
 	return (
-		<div className="bg-surface border border-line rounded overflow-visible">
+		<div className="bg-surface border border-line rounded overflow-visible mr-11">
 			<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
 				<div className="font-bold text-[14px] text-body">Item Table</div>
 				<div className="num text-[12.5px] text-body-3">
@@ -68,7 +68,8 @@ export default function POItemTable({
 				<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
 					MAX CAPACITY
 				</div>
-				<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
+				<div
+					className={`px-3.5 py-2.5 text-right min-w-0 ${showRate ? 'border-r border-line' : ''}`}>
 					QUANTITY
 				</div>
 				{showRate && (
@@ -76,12 +77,9 @@ export default function POItemTable({
 						<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
 							RATE
 						</div>
-						<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
-							AMOUNT
-						</div>
+						<div className="px-3.5 py-2.5 text-right min-w-0">AMOUNT</div>
 					</>
 				)}
-				<div className="px-3.5 py-2.5" />
 			</div>
 
 			{lines.map((line) => (
@@ -188,7 +186,8 @@ function POLineRow({
 			</div>
 
 			{/* QUANTITY */}
-			<div className="px-3.5 py-2.5 border-r border-line min-w-0">
+			<div
+				className={`px-3.5 py-2.5 min-w-0 ${showRate ? 'border-r border-line' : ''}`}>
 				<input
 					type="number"
 					min="0"
@@ -214,26 +213,30 @@ function POLineRow({
 					</div>
 
 					{/* AMOUNT */}
-					<div className="num px-3.5 py-3 border-r border-line text-right text-[13.5px] font-bold text-body min-w-0">
+					<div className="num px-3.5 py-3 text-right text-[13.5px] font-bold text-body min-w-0">
 						{money(amount)}
 					</div>
 				</>
 			)}
 
-			{/* Remove — the trailing blank row has nothing to remove, and deleting it
-			    would only make the table grow a fresh one. */}
-			<div className="flex items-center justify-center px-2 py-2.5">
-				{(line.item_id || line.isFreeText) && (
-					<button
-						onClick={() => onRemoveLine(line.key)}
-						title="Remove line"
-						className="w-6 h-6 rounded-full border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-							<path d="M6 6l12 12M18 6L6 18" />
-						</svg>
-					</button>
-				)}
-			</div>
+			{/* Remove — positioned outside the table, so the grid ends at the last
+			    data column. Absolute against the row keeps it centred on that row
+			    whatever its height. The trailing blank row has nothing to remove,
+			    and deleting it would only make the table grow a fresh one. */}
+			{(line.item_id || line.isFreeText) && (
+				<button
+					onClick={() => onRemoveLine(line.key)}
+					title="Remove line"
+					aria-label={`Remove ${line.name || 'this line'}`}
+					className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+						<path d="M3 6h18" />
+						<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+						<path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+						<path d="M10 11v6M14 11v6" />
+					</svg>
+				</button>
+			)}
 		</div>
 	);
 }

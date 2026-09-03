@@ -277,10 +277,10 @@ export default function ZohoItemsTable() {
 								setGroupBy(t.id);
 								setExpandedGroups(new Set());
 							}}
-							className={`border-none bg-transparent px-3 py-[5px] rounded-md text-[12.5px] font-bold cursor-pointer whitespace-nowrap ${
+							className={`border-none px-3 py-[5px] rounded text-[12.5px] font-bold cursor-pointer whitespace-nowrap ${
 								groupBy === t.id
 									? 'bg-surface text-link shadow-[0_1px_2px_rgba(20,30,50,.12)]'
-									: 'text-muted'
+									: 'bg-transparent text-muted hover:text-body-3'
 							}`}>
 							{t.label}
 						</button>

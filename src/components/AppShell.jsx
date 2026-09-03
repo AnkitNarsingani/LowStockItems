@@ -63,13 +63,13 @@ export default function AppShell() {
 
 				<button
 					onClick={logout}
-					className="flex items-center gap-2 h-8 px-3 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[12.5px] cursor-pointer hover:bg-surface-2">
+					className="flex items-center gap-2 h-8 px-3 rounded border border-danger-border bg-surface text-danger font-bold text-[12.5px] cursor-pointer hover:bg-red-50">
 					<svg
 						width="15"
 						height="15"
 						viewBox="0 0 24 24"
 						fill="none"
-						stroke="#5b6270"
+						stroke="currentColor"
 						strokeWidth="1.9"
 						strokeLinecap="round"
 						strokeLinejoin="round">
