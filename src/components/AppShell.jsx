@@ -1,5 +1,14 @@
+import { useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { logout } from '../App';
+import {
+	subscribe as subscribeToRun,
+	getState as getRunState,
+} from '../lib/reorderRun';
+import {
+	subscribe as subscribeToLoad,
+	getState as getLoadState,
+} from '../lib/lowStockRun';
 
 // 52px top bar + 236px sidebar, per docs/design/LowStockItems.dc.html.
 export const TOP_BAR_H = 52;
@@ -49,6 +58,35 @@ const NAV = [
 
 export default function AppShell() {
 	const { pathname } = useLocation();
+
+	// A suggestion run continues while you are on another page, so the nav has
+	// to show it — otherwise minutes of work happen with no sign of it.
+	const run = useSyncExternalStore(subscribeToRun, getRunState);
+	const runProgress =
+		run.phase === 'running' && run.progress?.total
+			? Math.round((run.progress.done / run.progress.total) * 100)
+			: null;
+
+	const load = useSyncExternalStore(subscribeToLoad, getLoadState);
+
+	// Which nav item, if any, has work in flight — and what to show against it.
+	const activity = {
+		'/reorder-suggestions':
+			run.phase === 'running'
+				? {
+						label: runProgress != null ? `${runProgress}%` : '',
+						title: run.progress
+							? `Computing ${run.progress.done} of ${run.progress.total}`
+							: 'Computing',
+					}
+				: null,
+		'/': load.phase === 'loading'
+			? {
+					label: load.loaded ? String(load.loaded) : '',
+					title: `Loaded ${load.loaded} of ${load.total || '?'} items`,
+				}
+			: null,
+	};
 
 	return (
 		<div className="min-h-screen bg-app flex flex-col text-left">
@@ -110,7 +148,24 @@ export default function AppShell() {
 									strokeLinejoin="round">
 									{item.icon}
 								</svg>
-								<span>{item.label}</span>
+								<span className="flex-1 min-w-0 truncate">{item.label}</span>
+
+								{/* Work in flight for this section, so a background job is
+								    visible from wherever you are. */}
+								{activity[item.to] && (
+									<span
+										title={activity[item.to].title}
+										className={`flex items-center gap-1 text-[10px] font-bold num flex-shrink-0 ${
+											active ? 'text-white/90' : 'text-link'
+										}`}>
+										<span
+											className={`w-2.5 h-2.5 rounded-full border-2 border-t-transparent animate-spin ${
+												active ? 'border-white/70' : 'border-link'
+											}`}
+										/>
+										{activity[item.to].label}
+									</span>
+								)}
 							</NavLink>
 						);
 					})}

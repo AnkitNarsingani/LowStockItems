@@ -3,10 +3,14 @@ import React, {
 	useState,
 	useCallback,
 	useMemo,
-	useRef,
+	useSyncExternalStore,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchItems } from './ZohoAPI';
+import {
+	subscribe as subscribeToLoad,
+	getState as getLoadState,
+	startLoad,
+} from '../lib/lowStockRun';
 import ItemRow, { LOW_TABLE_COLS } from './ItemRow';
 import Checkbox from './Checkbox';
 import './ItemRow.css';
@@ -37,20 +41,22 @@ export default function ZohoItemsTable() {
 	// through router state.
 	const [poResult, setPoResult] = useState(null);
 
-	const [items, setItems] = useState([]);
+	// The load lives outside React so it survives navigating away — see
+	// src/lib/lowStockRun.js.
+	const load = useSyncExternalStore(subscribeToLoad, getLoadState);
+	const items = load.items;
+	const loading = load.phase === 'loading';
+	const loadedCount = load.loaded;
+	const totalCount = load.total;
+
 	const [groupBy, setGroupBy] = useState(GROUP_BY_OPTIONS.VENDOR);
 	const [search, setSearch] = useState('');
 	// Groups start collapsed, so the page opens as a short list of groups rather
 	// than every item at once. Tracking the *expanded* ones means an empty set is
 	// the default state, and a change of grouping collapses everything again.
 	const [expandedGroups, setExpandedGroups] = useState(new Set());
-	const [loading, setLoading] = useState(true);
-	const [loadedCount, setLoadedCount] = useState(0);
-	const [totalCount, setTotalCount] = useState(0);
 
 	const [selectedItemIds, setSelectedItemIds] = useState(new Set());
-
-	const itemCacheRef = useRef(null);
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -178,38 +184,9 @@ export default function ZohoItemsTable() {
 		navigate(location.pathname, { replace: true, state: null });
 	}, [location.state, location.pathname, navigate]);
 
+	// Kick the shared load off; it no-ops when one is already running or done.
 	useEffect(() => {
-		const loadItems = async () => {
-			if (itemCacheRef.current) {
-				setItems(itemCacheRef.current.items);
-				setLoadedCount(itemCacheRef.current.total);
-				setTotalCount(itemCacheRef.current.total);
-				setLoading(false);
-				return;
-			}
-
-			setLoading(true);
-			setItems([]);
-			setLoadedCount(0);
-			setTotalCount(0);
-
-			let lastTotal = 0;
-			await fetchItems((partialItems, total) => {
-				setItems(partialItems);
-				setLoadedCount(partialItems.length);
-				setTotalCount(total);
-				lastTotal = total;
-			});
-
-			setItems((final) => {
-				itemCacheRef.current = { items: final, total: lastTotal };
-				return final;
-			});
-
-			setLoading(false);
-		};
-
-		loadItems();
+		startLoad();
 	}, []);
 
 	const groupMetricLabel =

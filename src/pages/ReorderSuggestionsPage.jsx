@@ -1,16 +1,16 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
-import { getAllItems, getSalesForPeriod } from '../components/ZohoAPI';
-import { listLostSales } from '../lib/lostSales';
+import { useState, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
+import { subLineFor } from '../lib/reorderEngine';
 import {
-	computeSuggestion,
-	subLineFor,
-	DEFAULT_SETTINGS,
-} from '../lib/reorderEngine';
+	subscribe as subscribeToRun,
+	getState as getRunState,
+	startRun,
+	setDecision,
+	setDecisions,
+} from '../lib/reorderRun';
 import UndoToast from '../components/UndoToast';
 
 const COLS = 'minmax(0,2.4fr) minmax(0,1.6fr) minmax(0,1.6fr) 130px';
 const UNDO_WINDOW = 5000;
-const SALES_WINDOW_DAYS = 365;
 
 /**
  * Reorder-point suggestion review — Engine B.
@@ -23,13 +23,14 @@ const SALES_WINDOW_DAYS = 365;
  * the note at the foot of the page.
  */
 export default function ReorderSuggestionsPage() {
-	const [suggestions, setSuggestions] = useState(null);
-	const [status, setStatus] = useState({});
-	const [busy, setBusy] = useState(false);
-	const [progress, setProgress] = useState(null);
-	const [error, setError] = useState(null);
-	const [scanned, setScanned] = useState(0);
+	// The run lives outside React so it survives navigating away — see
+	// src/lib/reorderRun.js. The page is only a view onto it.
+	const run = useSyncExternalStore(subscribeToRun, getRunState);
+	const { suggestions, status, progress, error, scanned } = run;
+	const busy = run.phase === 'running';
 
+	// Toasts are ephemeral UI and stay local: leaving the page commits whatever
+	// undo window was open, which is the right outcome.
 	const [toasts, setToasts] = useState([]);
 	const toastSeq = useRef(0);
 
@@ -39,7 +40,7 @@ export default function ReorderSuggestionsPage() {
 
 	const undo = useCallback(
 		(toast) => {
-			setStatus((prev) => ({ ...prev, ...toast.previous }));
+			setDecisions(toast.previous);
 			dismiss(toast.tid);
 		},
 		[dismiss],
@@ -50,97 +51,14 @@ export default function ReorderSuggestionsPage() {
 		setToasts((list) => [...list, { tid, previous, label }]);
 	};
 
-	const compute = async () => {
-		setBusy(true);
-		setError(null);
-		setSuggestions(null);
+	const compute = () => {
 		setToasts([]);
-
-		try {
-			// Lost sales are the whole reason this engine can run before stock
-			// history exists — they are the only evidence of demand that went
-			// unmet. A failure here is not fatal; it just means no correction.
-			let lostByItem = new Map();
-			try {
-				const lost = await listLostSales();
-				for (const r of lost) {
-					if (!r.item_id) continue;
-					const cur = lostByItem.get(r.item_id) || { units: 0, count: 0 };
-					cur.units += Number(r.qty_wanted) || 0;
-					cur.count += 1;
-					lostByItem.set(r.item_id, cur);
-				}
-			} catch {
-				lostByItem = new Map();
-			}
-
-			const items = await getAllItems();
-
-			// Only items that could produce a suggestion are worth a sales call:
-			// one that has neither a reorder point nor a max capacity has nothing
-			// to compare a proposal against.
-			const candidates = items.filter(
-				(i) =>
-					Number(i.reorder_level) > 0 ||
-					Number(i.cf_maximum_capacity) > 0 ||
-					lostByItem.has(i.item_id),
-			);
-
-			setScanned(candidates.length);
-			setProgress({ done: 0, total: candidates.length });
-
-			const out = [];
-			for (let i = 0; i < candidates.length; i++) {
-				const item = candidates[i];
-				const sold = await getSalesForPeriod(item.item_id, SALES_WINDOW_DAYS);
-				const lost = lostByItem.get(item.item_id) || { units: 0, count: 0 };
-
-				const suggestion = computeSuggestion(
-					{
-						item_id: item.item_id,
-						item_name: item.name,
-						current_rop: Number(item.reorder_level) || 0,
-						current_max: Number(item.cf_maximum_capacity) || 0,
-						sold,
-						lost_units: lost.units,
-						lost_sales_count: lost.count,
-						// No nightly stock snapshot yet, so no censoring correction.
-						days_in_stock: null,
-						history_days: item.created_time
-							? Math.floor(
-									(Date.now() - new Date(item.created_time).getTime()) / 86400000,
-								)
-							: null,
-						lead_time: null,
-						order_cycle_days: null,
-					},
-					DEFAULT_SETTINGS,
-				);
-
-				if (suggestion) out.push(suggestion);
-
-				setProgress({ done: i + 1, total: candidates.length });
-				if (i < candidates.length - 1) {
-					await new Promise((r) => setTimeout(r, 150));
-				}
-			}
-
-			// Biggest movers first — those are the ones worth a decision.
-			out.sort((a, b) => magnitude(b) - magnitude(a));
-
-			setSuggestions(out);
-			setStatus(Object.fromEntries(out.map((s) => [s.item_id, 'pending'])));
-		} catch (e) {
-			setError(e.message || 'Could not compute suggestions.');
-		} finally {
-			setBusy(false);
-			setProgress(null);
-		}
+		startRun();
 	};
 
 	const decide = (suggestion, next) => {
 		const previous = { [suggestion.item_id]: status[suggestion.item_id] };
-		setStatus((prev) => ({ ...prev, [suggestion.item_id]: next }));
+		setDecision(suggestion.item_id, next);
 		pushToast(
 			previous,
 			`${next === 'approved' ? 'Approving' : 'Rejecting'} ${suggestion.item_name}`,
@@ -153,11 +71,9 @@ export default function ReorderSuggestionsPage() {
 		);
 		if (targets.length === 0) return;
 
-		setStatus((prev) => {
-			const next = { ...prev };
-			for (const s of targets) next[s.item_id] = 'approved';
-			return next;
-		});
+		setDecisions(
+			Object.fromEntries(targets.map((s) => [s.item_id, 'approved'])),
+		);
 		for (const s of targets) {
 			pushToast({ [s.item_id]: 'pending' }, `Approving ${s.item_name}`);
 		}
@@ -216,7 +132,8 @@ export default function ReorderSuggestionsPage() {
 				<div className="mb-4 max-w-[760px]">
 					<div className="flex justify-between items-center mb-1.5">
 						<span className="text-[12.5px] text-muted">
-							Reading 365-day sales for each item…
+							Reading 365-day sales for each item. This keeps running if you
+							go elsewhere.
 						</span>
 						<span className="text-[12.5px] font-bold text-body-3 num">
 							{progress.done} / {progress.total}
@@ -264,14 +181,18 @@ export default function ReorderSuggestionsPage() {
 				) : visible.length === 0 ? (
 					<div className="px-5 py-14 text-center">
 						<div className="text-[14px] font-bold text-heading mb-1">
-							{suggestions.length === 0
-								? 'No changes worth making'
-								: 'All suggestions reviewed'}
+							{busy
+								? 'Working…'
+								: suggestions.length === 0
+									? 'No changes worth making'
+									: 'All suggestions reviewed'}
 						</div>
 						<p className="text-[13px] text-muted-2 m-0">
-							{suggestions.length === 0
-								? `Checked ${scanned} item${scanned === 1 ? '' : 's'}; every reorder point and max capacity is already close enough to demand.`
-								: `${counts.approved} approved${counts.rejected > 0 ? `, ${counts.rejected} rejected` : ''}.`}
+							{busy
+								? 'No suggestions yet. Rows appear here as they are found.'
+								: suggestions.length === 0
+									? `Checked ${scanned} item${scanned === 1 ? '' : 's'}; every reorder point and max capacity is already close enough to demand.`
+									: `${counts.approved} approved${counts.rejected > 0 ? `, ${counts.rejected} rejected` : ''}.`}
 						</p>
 					</div>
 				) : (
@@ -363,12 +284,6 @@ export default function ReorderSuggestionsPage() {
 	);
 }
 
-/** How far a suggestion moves things, for ordering the list. */
-function magnitude(s) {
-	const rop = s.proposed_rop == null ? 0 : Math.abs(s.proposed_rop - s.current_rop);
-	const max = s.proposed_max == null ? 0 : Math.abs(s.proposed_max - s.current_max);
-	return rop + max;
-}
 
 /**
  * current → proposed. The new value is emphasised in blue when it moves and

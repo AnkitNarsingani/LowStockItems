@@ -13,6 +13,7 @@ import BulkAddItemsModal from '../components/po/BulkAddItemsModal';
 import VendorPicker from '../components/po/VendorPicker';
 import ContactDetails from '../components/ContactDetails';
 import Toggle from '../components/po/Toggle';
+import { invalidate as invalidateLowStock } from '../lib/lowStockRun';
 
 const money = (v) =>
 	'₹' +
@@ -338,9 +339,13 @@ export default function NewPOPage() {
 				roundOff,
 				adjustment: Number(adjustment) || 0,
 			});
-			// Close the page and report back on the list, which reloads and so drops
-			// the items that now sit on an open PO. `replace` keeps the spent form
-			// out of the history, so Back does not return to it.
+			// The items just ordered now sit on an open PO, so they should drop off
+			// the low-stock list. The cached load has to be dropped for that to
+			// show — otherwise the list would come back stale.
+			invalidateLowStock();
+
+			// Close the page and report back on the list. `replace` keeps the spent
+			// form out of the history, so Back does not return to it.
 			navigate('/', {
 				replace: true,
 				state: {
