@@ -1,6 +1,12 @@
 const ORG_ID = process.env.REACT_APP_ZOHO_ORG;
-const BASE_ITEMS = `https://www.zohoapis.in/books/v3`;
 const BASE_PROXY = `https://zoho-proxy.biz-laxmitrading.workers.dev/books/v3`;
+
+// Item calls once went straight to https://www.zohoapis.in/books/v3. Zoho sends
+// no Access-Control-Allow-Origin on those responses, so from the deployed
+// origin every one was blocked by CORS and the tables came up empty. The
+// Cloudflare Worker forwards the same requests and does send the header, so
+// item calls go through it like everything else.
+const BASE_ITEMS = BASE_PROXY;
 
 const getAccessToken = () => localStorage.getItem('accessToken');
 
