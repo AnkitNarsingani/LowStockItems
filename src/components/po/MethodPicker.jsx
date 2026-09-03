@@ -13,6 +13,7 @@ import { calculateBundleQuantities, simpleQuantityFor } from '../ZohoAPI';
 import { getSales, peekSales, missingFor } from '../../lib/salesCache';
 import Toggle from './Toggle';
 import ModeSelect from './ModeSelect';
+import Checkbox from '../Checkbox';
 import Field from '../Field';
 
 // Re-exported so existing imports keep working.
@@ -79,11 +80,18 @@ const METHOD_LIST = [
 	},
 ];
 
+const specFor = (id) => METHOD_LIST.find((m) => m.id === id);
+
 const nf = (v) => (v == null ? '—' : Number(v).toLocaleString('en-IN'));
 
 export default function MethodPicker({ lines, onApply }) {
 	// Nothing is persisted — the picker opens fresh with no method preselected.
 	const [method, setMethod] = useState(null);
+	// Comparing runs several methods over the same items and the same inputs, so
+	// the only thing differing between the columns is the method itself.
+	const [compare, setCompare] = useState(false);
+	const [compareIds, setCompareIds] = useState([]);
+
 	const [bundleTotal, setBundleTotal] = useState('');
 	const [exponent, setExponent] = useState(String(DEFAULT_DAMPING_EXPONENT));
 	const [coverDays, setCoverDays] = useState(String(DEFAULT_COVER_DAYS));
@@ -93,7 +101,6 @@ export default function MethodPicker({ lines, onApply }) {
 	const [busy, setBusy] = useState(false);
 	const [progress, setProgress] = useState(null);
 	const [error, setError] = useState(null);
-	const [notice, setNotice] = useState(null);
 
 	const allocatable = useMemo(
 		() => lines.filter((l) => !l.isFreeText && l.item_id),
@@ -106,13 +113,28 @@ export default function MethodPicker({ lines, onApply }) {
 		[lines],
 	);
 
-	const spec = METHOD_LIST.find((m) => m.id === method);
+	const selectedIds = useMemo(
+		() => (compare ? compareIds : method ? [method] : []),
+		[compare, compareIds, method],
+	);
+	const specs = useMemo(
+		() => selectedIds.map(specFor).filter(Boolean),
+		[selectedIds],
+	);
+
+	// The knobs on show are the union of what the chosen methods ask for, and
+	// they are shared: comparing is only meaningful at the same bundle total.
+	const needs = useMemo(() => {
+		const set = new Set();
+		for (const s of specs) for (const n of s.needs) set.add(n);
+		return set;
+	}, [specs]);
+
 	const pendingEnrich = allocatable.filter((l) => l.enriched === false).length;
 
 	const invalidate = useCallback(() => {
 		setPreview(null);
 		setError(null);
-		setNotice(null);
 	}, []);
 
 	const choose = (id) => {
@@ -120,57 +142,49 @@ export default function MethodPicker({ lines, onApply }) {
 		invalidate();
 	};
 
+	const toggleCompared = (id) => {
+		setCompareIds((prev) =>
+			prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+		);
+		invalidate();
+	};
+
+	const toggleCompare = () => {
+		if (compare) {
+			// Leaving compare keeps the first ticked method, so the page does not
+			// silently lose the selection.
+			setMethod((m) => compareIds[0] ?? m);
+			setCompare(false);
+		} else {
+			setCompareIds(method ? [method] : []);
+			setCompare(true);
+		}
+		invalidate();
+	};
+
+	const minMethods = compare ? 2 : 1;
 	const isValid = (() => {
-		if (!spec) return false;
-		if (spec.needs.includes('B') && !(Number(bundleTotal) > 0)) return false;
-		if (spec.needs.includes('D') && !(Number(coverDays) > 0)) return false;
-		if (spec.needs.includes('e')) {
+		if (selectedIds.length < minMethods) return false;
+		if (needs.has('B') && !(Number(bundleTotal) > 0)) return false;
+		if (needs.has('D') && !(Number(coverDays) > 0)) return false;
+		if (needs.has('e')) {
 			const e = Number(exponent);
 			if (!(e >= 0 && e <= 1)) return false;
 		}
 		return true;
 	})();
 
-	const runPreview = async () => {
-		if (!isValid || allocatable.length === 0) return;
-		setBusy(true);
-		setError(null);
-		setNotice(null);
-		setPreview(null);
-
-		try {
-			const win = WINDOW_FOR[method];
-
-			if (win) {
-				// Only what is genuinely absent is fetched. Anything already read —
-				// by an earlier preview, an earlier visit to this page, or the
-				// reorder run — is reused.
-				const missing = missingFor(
-					allocatable.map((l) => l.item_id),
-					win,
-				);
-				const reused = allocatable.length - missing.length;
-				setProgress({ done: 0, total: missing.length, reused });
-
-				for (let i = 0; i < missing.length; i++) {
-					await getSales(missing[i], win);
-					setProgress({ done: i + 1, total: missing.length, reused });
-					// Same pacing the rest of the app uses against the proxy.
-					if (i < missing.length - 1) {
-						await new Promise((r) => setTimeout(r, 150));
-					}
-				}
-
-				setProgress(null);
+	// One method's quantities for the current items, in the order of
+	// `allocatable`. Methods 1 and 2 run through the very code the create call
+	// uses; the rest go through the allocation library.
+	const quantitiesFor = useCallback(
+		async (id, soldFor) => {
+			if (id === METHODS.SIMPLE) {
+				// Method 1 — MUST PRESERVE. Same helper the create call uses.
+				return { qty: allocatable.map((l) => simpleQuantityFor(l) ?? 0) };
 			}
 
-			const soldFor = (l) => (win ? (peekSales(l.item_id, win) ?? 0) : 0);
-			let qtyByIndex;
-
-			if (method === METHODS.SIMPLE) {
-				// Method 1 — MUST PRESERVE. Same helper the create call uses.
-				qtyByIndex = allocatable.map((l) => simpleQuantityFor(l) ?? 0);
-			} else if (method === METHODS.BUNDLE_VELOCITY) {
+			if (id === METHODS.BUNDLE_VELOCITY) {
 				// Method 2 — MUST PRESERVE. The real function, fed from the cache so
 				// the preview costs no extra API calls.
 				const qtyMap = await calculateBundleQuantities(
@@ -183,41 +197,106 @@ export default function MethodPicker({ lines, onApply }) {
 				);
 
 				if (qtyMap) {
-					qtyByIndex = allocatable.map((l) => qtyMap[l.item_id] ?? 0);
-				} else {
-					// MUST PRESERVE: with no candidates the existing code path falls
-					// through to Simple, so the preview has to do the same.
-					qtyByIndex = allocatable.map((l) => simpleQuantityFor(l) ?? 0);
-					setNotice(
-						'No item qualified for bundle allocation — every item is at or over max capacity, or has none set. Falling back to Simple, exactly as the existing behaviour does. Method 3 or 6 will spread across the group instead.',
-					);
+					return { qty: allocatable.map((l) => qtyMap[l.item_id] ?? 0) };
 				}
-			} else {
-				const rows = allocatable.map((l) =>
-					deriveRow(l, soldFor(l), overrideMax),
-				);
-				qtyByIndex = allocate(rows, {
-					method,
+
+				// MUST PRESERVE: with no candidates the existing code path falls
+				// through to Simple, so the preview has to do the same.
+				return {
+					qty: allocatable.map((l) => simpleQuantityFor(l) ?? 0),
+					notice:
+						'No item qualified for bundle allocation — every item is at or over max capacity, or has none set. Falling back to Simple, exactly as the existing behaviour does. Method 3 or 6 will spread across the group instead.',
+				};
+			}
+
+			const rows = allocatable.map((l) =>
+				deriveRow(l, soldFor(l, id), overrideMax),
+			);
+			return {
+				qty: allocate(rows, {
+					method: id,
 					bundleTotal: Number(bundleTotal),
 					exponent: Number(exponent),
 					coverDays: Number(coverDays),
+				}),
+			};
+		},
+		[allocatable, bundleTotal, exponent, coverDays, overrideMax],
+	);
+
+	const runPreview = async () => {
+		if (!isValid || allocatable.length === 0) return;
+		setBusy(true);
+		setError(null);
+		setPreview(null);
+
+		try {
+			// Every distinct window the chosen methods need, fetched once between
+			// them — comparing methods 2 and 4 reads 180 and 365 days, not one of
+			// them twice.
+			const windows = [
+				...new Set(selectedIds.map((id) => WINDOW_FOR[id]).filter(Boolean)),
+			].sort((a, b) => a - b);
+
+			if (windows.length > 0) {
+				const plan = windows.map((win) => ({
+					win,
+					missing: missingFor(
+						allocatable.map((l) => l.item_id),
+						win,
+					),
+				}));
+				const total = plan.reduce((s, p) => s + p.missing.length, 0);
+				const reused = allocatable.length * windows.length - total;
+
+				let done = 0;
+				setProgress({ done, total, reused });
+
+				for (const { win, missing } of plan) {
+					for (const itemId of missing) {
+						await getSales(itemId, win);
+						done += 1;
+						setProgress({ done, total, reused });
+						// Same pacing the rest of the app uses against the proxy.
+						if (done < total) await new Promise((r) => setTimeout(r, 150));
+					}
+				}
+
+				setProgress(null);
+			}
+
+			const soldFor = (l, id) => {
+				const win = WINDOW_FOR[id];
+				return win ? (peekSales(l.item_id, win) ?? 0) : 0;
+			};
+
+			const methods = [];
+			for (const id of selectedIds) {
+				const spec = specFor(id);
+				const { qty, notice } = await quantitiesFor(id, soldFor);
+				methods.push({
+					id,
+					n: spec.n,
+					name: spec.name,
+					window: WINDOW_FOR[id],
+					qty,
+					notice: notice || null,
+					total: qty.reduce((s, q) => s + q, 0),
 				});
 			}
 
 			const rows = allocatable.map((l, i) => ({
 				key: l.key,
+				index: i,
 				name: l.name,
 				onHand: Number(l.available_stock ?? l.stock_on_hand ?? 0) || 0,
 				max: Number(l.cf_maximum_capacity) || 0,
-				sold: win ? soldFor(l) : null,
-				qty: qtyByIndex[i] ?? 0,
+				sold: Object.fromEntries(
+					windows.map((w) => [w, peekSales(l.item_id, w) ?? 0]),
+				),
 			}));
 
-			setPreview({
-				rows,
-				window: win,
-				total: rows.reduce((s, r) => s + r.qty, 0),
-			});
+			setPreview({ rows, windows, methods });
 
 			// §A.5: evaluating a selection is the moment the stockout-group
 			// condition can be observed — it depends on the whole group's stock
@@ -235,31 +314,85 @@ export default function MethodPicker({ lines, onApply }) {
 		}
 	};
 
-	const apply = () => {
-		if (!preview) return;
+	const apply = (entry) => {
+		if (!preview || !entry) return;
 		const map = {};
-		for (const r of preview.rows) map[r.key] = r.qty;
+		for (const r of preview.rows) map[r.key] = entry.qty[r.index] ?? 0;
 		onApply(map);
 	};
 
-	const supportsOverride =
-		spec && spec.id !== METHODS.SIMPLE && spec.id !== METHODS.BUNDLE_VELOCITY;
+	const supportsOverride = specs.some(
+		(s) => s.id !== METHODS.SIMPLE && s.id !== METHODS.BUNDLE_VELOCITY,
+	);
+
+	// ITEM · ON HAND · MAX · one SOLD per window · one quantity per method.
+	const gridCols = preview
+		? `2fr 0.8fr 0.8fr ${preview.windows
+				.map(() => '0.9fr')
+				.join(' ')} ${preview.methods.map(() => '1fr').join(' ')}`
+		: '';
 
 	return (
 		<>
 			<Field label="Quantity mode" align="start">
-				<ModeSelect
-					options={METHOD_LIST}
-					value={method}
-					onChange={choose}
-					placeholder="Select a quantity mode"
-				/>
+				<div className="flex items-center justify-between gap-3 mb-2">
+					<span className="text-[11.5px] text-muted">
+						{compare
+							? 'Pick two or more to run side by side.'
+							: 'One method fills the quantity column.'}
+					</span>
+					<label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+						<Toggle on={compare} onChange={toggleCompare} />
+						<span className="text-[12px] font-semibold text-body-3">
+							Compare methods
+						</span>
+					</label>
+				</div>
 
-				{/* A method's own inputs live right under the dropdown, so the knobs
+				{compare ? (
+					<div className="border border-line-2 rounded overflow-hidden">
+						{METHOD_LIST.map((m) => {
+							const on = compareIds.includes(m.id);
+							return (
+								<div
+									key={m.id}
+									onClick={() => toggleCompared(m.id)}
+									className={`flex items-start gap-2.5 px-3 py-2 cursor-pointer border-b border-line-4 last:border-b-0 ${
+										on ? 'bg-brand-bg' : 'bg-surface hover:bg-surface-2'
+									}`}>
+									<div className="pt-0.5">
+										<Checkbox
+											checked={on}
+											size={16}
+											label={m.name}
+											onChange={() => toggleCompared(m.id)}
+										/>
+									</div>
+									<div className="min-w-0">
+										<div className="text-[13px] font-bold text-body">
+											<span className="num text-muted mr-1.5">{m.n}</span>
+											{m.name}
+										</div>
+										<div className="text-[11px] text-muted-2">{m.desc}</div>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				) : (
+					<ModeSelect
+						options={METHOD_LIST}
+						value={method}
+						onChange={choose}
+						placeholder="Select a quantity mode"
+					/>
+				)}
+
+				{/* A method's own inputs live right under the selection, so the knobs
 				    are next to the choice that introduced them. */}
-				{spec && (
+				{specs.length > 0 && (
 					<div className="mt-3 flex flex-col gap-3">
-						{spec.needs.includes('B') && (
+						{needs.has('B') && (
 							<Knob
 								label={
 									<>
@@ -277,7 +410,7 @@ export default function MethodPicker({ lines, onApply }) {
 							/>
 						)}
 
-						{spec.needs.includes('D') && (
+						{needs.has('D') && (
 							<Knob
 								label={
 									<>
@@ -294,7 +427,7 @@ export default function MethodPicker({ lines, onApply }) {
 							/>
 						)}
 
-						{spec.needs.includes('e') && (
+						{needs.has('e') && (
 							<Knob
 								label="Damping exponent e"
 								hint="1 = raw sales share · 0 = equal split · 0.5 = compressed."
@@ -352,14 +485,20 @@ export default function MethodPicker({ lines, onApply }) {
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div className="min-w-0">
 						<div className="text-[13px] font-bold text-body">
-							Quantity preview
+							{compare ? 'Method comparison' : 'Quantity preview'}
 						</div>
 						<div className="text-[11.5px] text-muted mt-0.5">
-							{!method
-								? 'Pick a quantity mode above to work out order quantities.'
-								: !isValid
-									? 'Fill in the inputs above, then preview.'
-									: 'Read-only — nothing reaches the table until you apply it.'}
+							{selectedIds.length === 0
+								? compare
+									? 'Tick the methods you want to compare.'
+									: 'Pick a quantity mode above to work out order quantities.'
+								: selectedIds.length < minMethods
+									? 'Tick at least one more method to compare.'
+									: !isValid
+										? 'Fill in the inputs above, then preview.'
+										: compare
+											? 'Read-only — apply whichever column you prefer.'
+											: 'Read-only — nothing reaches the table until you apply it.'}
 						</div>
 					</div>
 
@@ -371,12 +510,16 @@ export default function MethodPicker({ lines, onApply }) {
 							{busy && (
 								<span className="w-3.5 h-3.5 border-2 border-muted-4 border-t-body-3 rounded-full animate-spin" />
 							)}
-							{busy ? 'Computing…' : 'Preview quantities'}
+							{busy
+								? 'Computing…'
+								: compare
+									? 'Compare quantities'
+									: 'Preview quantities'}
 						</button>
 
-						{preview && (
+						{preview && !compare && (
 							<button
-								onClick={apply}
+								onClick={() => apply(preview.methods[0])}
 								className="h-[38px] px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer shadow-[0_1px_2px_rgba(64,141,251,.35)]">
 								Use these quantities
 							</button>
@@ -403,11 +546,18 @@ export default function MethodPicker({ lines, onApply }) {
 						{error}
 					</div>
 				)}
-				{notice && (
-					<div className="text-[12px] text-warn-2 bg-warn-bg border border-warn-border rounded px-3 py-2 mt-2.5">
-						{notice}
-					</div>
-				)}
+				{preview?.methods
+					.filter((m) => m.notice)
+					.map((m) => (
+						<div
+							key={m.id}
+							className="text-[12px] text-warn-2 bg-warn-bg border border-warn-border rounded px-3 py-2 mt-2.5">
+							<span className="font-bold">
+								{m.n}. {m.name}:
+							</span>{' '}
+							{m.notice}
+						</div>
+					))}
 
 				{preview && (
 					<div className="mt-3 border border-line rounded overflow-hidden bg-surface">
@@ -415,43 +565,88 @@ export default function MethodPicker({ lines, onApply }) {
 							<span className="text-[11.5px] text-muted">
 								Read-only — nothing is saved until you create the PO.
 							</span>
-							<span className="num text-[12.5px] font-bold text-body">
-								Total: {nf(preview.total)}
-							</span>
+							{!compare && (
+								<span className="num text-[12.5px] font-bold text-body">
+									Total: {nf(preview.methods[0].total)}
+								</span>
+							)}
 						</div>
-						<div className="max-h-[280px] overflow-auto">
-							<div className="grid grid-cols-[2fr_0.8fr_0.8fr_0.9fr_0.9fr] bg-surface-2 border-b border-line text-[10px] font-bold text-muted tracking-[.04em]">
+
+						<div className="max-h-[320px] overflow-auto">
+							<div
+								style={{ gridTemplateColumns: gridCols }}
+								className="grid bg-surface-2 border-b border-line text-[10px] font-bold text-muted tracking-[.04em]">
 								<div className="px-3 py-1.5">ITEM</div>
 								<div className="px-3 py-1.5 text-right">ON HAND</div>
 								<div className="px-3 py-1.5 text-right">MAX</div>
-								<div className="px-3 py-1.5 text-right">
-									SOLD{preview.window ? ` ${preview.window}D` : ''}
-								</div>
-								<div className="px-3 py-1.5 text-right">ORDER QTY</div>
+								{preview.windows.map((w) => (
+									<div key={w} className="px-3 py-1.5 text-right">
+										SOLD {w}D
+									</div>
+								))}
+								{preview.methods.map((m) => (
+									<div
+										key={m.id}
+										className="px-3 py-1.5 text-right text-body-3 truncate"
+										title={m.name}>
+										{compare ? `${m.n}. ${m.name}` : 'ORDER QTY'}
+									</div>
+								))}
 							</div>
+
 							{preview.rows.map((r) => (
 								<div
 									key={r.key}
-									className={`grid grid-cols-[2fr_0.8fr_0.8fr_0.9fr_0.9fr] border-b border-line-4 text-[12.5px] ${
-										r.qty === 0 ? 'text-muted-2' : 'text-body-3'
-									}`}>
+									style={{ gridTemplateColumns: gridCols }}
+									className="grid border-b border-line-4 text-[12.5px] text-body-3">
 									<div className="px-3 py-1.5 truncate">{r.name}</div>
-									<div className="num px-3 py-1.5 text-right">
-										{nf(r.onHand)}
-									</div>
+									<div className="num px-3 py-1.5 text-right">{nf(r.onHand)}</div>
 									<div className="num px-3 py-1.5 text-right">{nf(r.max)}</div>
-									<div className="num px-3 py-1.5 text-right">
-										{r.sold == null ? '—' : nf(r.sold)}
-									</div>
-									<div
-										className={`num px-3 py-1.5 text-right font-bold ${
-											r.qty === 0 ? '' : 'text-body'
-										}`}>
-										{nf(r.qty)}
-									</div>
+									{preview.windows.map((w) => (
+										<div key={w} className="num px-3 py-1.5 text-right">
+											{nf(r.sold[w])}
+										</div>
+									))}
+									{preview.methods.map((m) => {
+										const q = m.qty[r.index] ?? 0;
+										return (
+											<div
+												key={m.id}
+												className={`num px-3 py-1.5 text-right font-bold ${
+													q === 0 ? 'text-muted-2' : 'text-body'
+												}`}>
+												{nf(q)}
+											</div>
+										);
+									})}
 								</div>
 							))}
+
+							{/* Totals, and — when comparing — the way to take a column. */}
+							<div
+								style={{ gridTemplateColumns: gridCols }}
+								className="grid bg-surface-2 border-t border-line text-[11.5px] font-bold text-body">
+								<div className="px-3 py-2">TOTAL</div>
+								<div />
+								<div />
+								{preview.windows.map((w) => (
+									<div key={w} />
+								))}
+								{preview.methods.map((m) => (
+									<div key={m.id} className="px-3 py-2 text-right">
+										<div className="num">{nf(m.total)}</div>
+										{compare && (
+											<button
+												onClick={() => apply(m)}
+												className="mt-1 h-[26px] px-2.5 rounded border border-brand bg-brand text-white font-bold text-[11px] cursor-pointer">
+												Use
+											</button>
+										)}
+									</div>
+								))}
+							</div>
 						</div>
+
 						<div className="px-3.5 py-2 text-[11px] text-muted-2">
 							Lines showing 0 stay visible so you can see why, but are dropped
 							from the PO.
@@ -476,9 +671,7 @@ function Knob({ label, hint, value, onChange, ...rest }) {
 				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-brand"
 				{...rest}
 			/>
-			{hint && (
-				<span className="block text-[11px] text-muted mt-1">{hint}</span>
-			)}
+			{hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}
 		</label>
 	);
 }

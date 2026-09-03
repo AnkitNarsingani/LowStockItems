@@ -592,6 +592,8 @@ export const TRANSACTION_TYPES = {
 		numberKey: 'invoice_number',
 		contactKey: 'customer_name',
 		detailKey: 'invoice',
+		docTitle: 'TAX INVOICE',
+		contactLabel: 'Bill To',
 		qtyLabel: 'Quantity Sold',
 		statuses: [
 			['', 'All'],
@@ -612,6 +614,8 @@ export const TRANSACTION_TYPES = {
 		numberKey: 'creditnote_number',
 		contactKey: 'customer_name',
 		detailKey: 'creditnote',
+		docTitle: 'CREDIT NOTE',
+		contactLabel: 'Bill To',
 		qtyLabel: 'Quantity',
 		statuses: [
 			['', 'All'],
@@ -628,6 +632,8 @@ export const TRANSACTION_TYPES = {
 		numberKey: 'purchaseorder_number',
 		contactKey: 'vendor_name',
 		detailKey: 'purchaseorder',
+		docTitle: 'PURCHASE ORDER',
+		contactLabel: 'Vendor Address',
 		qtyLabel: 'Quantity Purchased',
 		statuses: [
 			['', 'All'],
@@ -646,6 +652,8 @@ export const TRANSACTION_TYPES = {
 		numberKey: 'bill_number',
 		contactKey: 'vendor_name',
 		detailKey: 'bill',
+		docTitle: 'BILL',
+		contactLabel: 'Bill From',
 		qtyLabel: 'Quantity Purchased',
 		statuses: [
 			['', 'All'],
@@ -665,6 +673,8 @@ export const TRANSACTION_TYPES = {
 		numberKey: 'vendor_credit_number',
 		contactKey: 'vendor_name',
 		detailKey: 'vendor_credit',
+		docTitle: 'VENDOR CREDITS',
+		contactLabel: 'Vendor Address',
 		qtyLabel: 'Quantity',
 		statuses: [
 			['', 'All'],
@@ -725,19 +735,75 @@ export async function getItemTransactions(
 	};
 }
 
-/** The line for one item within one document — its rate and quantity. */
-export async function getTransactionLine(type, docId, itemId) {
+// Documents are immutable enough for one session, and the panel reads the same
+// one twice — for a row's line, then again when that row is opened in full.
+const _docCache = new Map();
+
+/**
+ * One document in full, as Zoho returns it. Backs both the row summaries and
+ * the document view, so opening a row already on screen costs no extra call.
+ */
+export async function getTransactionDocument(type, docId) {
 	const cfg = TRANSACTION_TYPES[type];
-	if (!cfg) return null;
-	try {
+	if (!cfg) throw new Error(`Unknown transaction type "${type}".`);
+
+	const key = `${type}:${docId}`;
+	if (_docCache.has(key)) return _docCache.get(key);
+
+	const p = (async () => {
 		const res = await fetchWithRetry(
 			`${BASE_PROXY}/${cfg.path}/${docId}?organization_id=${ORG_ID}`,
 			{ headers: authHeaders() },
 		);
 		const data = await res.json();
-		if (data.code !== 0) return null;
+		if (data.code !== undefined && data.code !== 0) {
+			throw new Error(data.message || 'Could not load this document.');
+		}
+		const doc = data[cfg.detailKey];
+		if (!doc) throw new Error('Could not load this document.');
+		return doc;
+	})();
 
-		const lines = data[cfg.detailKey]?.line_items || [];
+	// A failure must not stay in the cache, or every retry would replay it.
+	p.catch(() => _docCache.delete(key));
+	_docCache.set(key, p);
+	return p;
+}
+
+/**
+ * The organisation's own letterhead — name, address and GSTIN — for the header
+ * of the document view. Read through the list endpoint the GST logic already
+ * uses, rather than a second path that would need proving.
+ */
+let _orgRecord;
+export async function getOrganization() {
+	if (_orgRecord !== undefined) return _orgRecord;
+	try {
+		const res = await fetchWithRetry(
+			`${BASE_PROXY}/organizations?organization_id=${ORG_ID}`,
+			{ headers: authHeaders() },
+		);
+		const data = await res.json();
+		_orgRecord =
+			data.organizations?.find(
+				(o) => String(o.organization_id) === String(ORG_ID),
+			) ||
+			data.organizations?.[0] ||
+			null;
+	} catch {
+		_orgRecord = null;
+	}
+	return _orgRecord;
+}
+
+/** The line for one item within one document — its rate and quantity. */
+export async function getTransactionLine(type, docId, itemId) {
+	const cfg = TRANSACTION_TYPES[type];
+	if (!cfg) return null;
+	try {
+		const doc = await getTransactionDocument(type, docId);
+
+		const lines = doc.line_items || [];
 		const line = lines.find((l) => l.item_id === itemId);
 		if (!line) return null;
 		return { rate: Number(line.rate) || 0, quantity: Number(line.quantity) || 0 };

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
 
 const money = (v) =>
 	'₹' +
@@ -14,13 +14,20 @@ const money = (v) =>
  *
  * Real Zoho items only — there is no free-text path here, so a line can never
  * reference something the catalogue does not know about.
+ *
+ * Keyboard-driven on the same terms as the vendor dropdown: ArrowUp/ArrowDown
+ * move the highlight, Home/End jump to the ends, Enter picks, Escape closes.
  */
 export default function ItemPicker({ items, loading, error, onPick }) {
 	const [search, setSearch] = useState('');
 	const [open, setOpen] = useState(false);
 	const [pos, setPos] = useState(null);
+	const [active, setActive] = useState(0);
 	const wrapRef = useRef(null);
 	const inputRef = useRef(null);
+	const listRef = useRef(null);
+	// Each row has its own picker, so the listbox id must be unique per one.
+	const listId = useId();
 
 	const results = useMemo(() => {
 		const q = search.toLowerCase().trim();
@@ -68,6 +75,54 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 		};
 	}, [open]);
 
+	// A new search means the old highlight index points at nothing meaningful.
+	useEffect(() => setActive(0), [search]);
+
+	// Keep the highlighted row in view as the arrows walk past the fold.
+	useEffect(() => {
+		if (!open || !listRef.current) return;
+		listRef.current
+			.querySelector(`[data-idx="${active}"]`)
+			?.scrollIntoView({ block: 'nearest' });
+	}, [active, open, results.length]);
+
+	const choose = (it) => {
+		onPick(it);
+		setSearch('');
+		setOpen(false);
+	};
+
+	const onKeyDown = (e) => {
+		if (e.key === 'Escape') {
+			setOpen(false);
+			return;
+		}
+		// Arrowing at a closed list opens it rather than doing nothing.
+		if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+			e.preventDefault();
+			setOpen(true);
+			return;
+		}
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			setActive((i) => (results.length ? (i + 1) % results.length : 0));
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			setActive((i) =>
+				results.length ? (i - 1 + results.length) % results.length : 0,
+			);
+		} else if (e.key === 'Home') {
+			e.preventDefault();
+			setActive(0);
+		} else if (e.key === 'End') {
+			e.preventDefault();
+			setActive(Math.max(0, results.length - 1));
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			const it = results[active];
+			if (it) choose(it);
+		}
+	};
 
 	return (
 		<div ref={wrapRef} className="relative">
@@ -79,9 +134,11 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 					setOpen(true);
 				}}
 				onFocus={() => setOpen(true)}
-				onKeyDown={(e) => {
-					if (e.key === 'Escape') setOpen(false);
-				}}
+				onKeyDown={onKeyDown}
+				role="combobox"
+				aria-expanded={open}
+				aria-controls={listId}
+				aria-autocomplete="list"
 				placeholder={
 					loading && items.length === 0
 						? 'Loading items…'
@@ -100,7 +157,11 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						width: pos.width,
 					}}
 					className="z-50 bg-surface border border-[#e0e3e7] rounded shadow-[0_14px_38px_rgba(20,30,50,.20)] overflow-hidden">
-					<div className="max-h-[250px] overflow-auto">
+					<div
+						id={listId}
+						ref={listRef}
+						className="max-h-[250px] overflow-auto"
+						role="listbox">
 						{error ? (
 							<div className="px-[13px] py-4 text-center text-danger text-[12.5px]">
 								{error}
@@ -114,35 +175,51 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 								No matching items
 							</div>
 						) : (
-							results.map((it) => {
+							results.map((it, i) => {
 								const stock = Number(
 									it.available_stock ?? it.stock_on_hand ?? 0,
 								);
+								const isActive = i === active;
 								return (
 									<div
 										key={it.item_id}
-										onClick={() => {
-											onPick(it);
-											setSearch('');
-											setOpen(false);
-										}}
-										className="flex justify-between px-[13px] py-[9px] cursor-pointer border-b border-[#f4f5f6] hover:bg-surface-2">
+										data-idx={i}
+										role="option"
+										aria-selected={isActive}
+										onMouseEnter={() => setActive(i)}
+										onClick={() => choose(it)}
+										className={`flex justify-between px-[13px] py-[9px] cursor-pointer border-b border-[#f4f5f6] ${
+											isActive ? 'bg-brand' : ''
+										}`}>
 										<div className="min-w-0">
-											<div className="text-[13.5px] font-bold text-body truncate">
+											<div
+												className={`text-[13.5px] font-bold truncate ${
+													isActive ? 'text-white' : 'text-body'
+												}`}>
 												{it.name}
 											</div>
-											<div className="text-[11px] text-muted-2 mt-0.5 truncate">
+											<div
+												className={`text-[11px] mt-0.5 truncate ${
+													isActive ? 'text-white/80' : 'text-muted-2'
+												}`}>
 												SKU: {it.sku || '—'} · Purchase Rate:{' '}
 												{money(it.purchase_rate ?? it.rate)}
 											</div>
 										</div>
 										<div className="text-right whitespace-nowrap pl-3.5">
-											<div className="text-[11px] text-muted-2">
+											<div
+												className={`text-[11px] ${
+													isActive ? 'text-white/80' : 'text-muted-2'
+												}`}>
 												Stock on Hand
 											</div>
 											<div
 												className={`num text-[12.5px] font-bold mt-0.5 ${
-													stock > 0 ? 'text-ok' : 'text-danger'
+													isActive
+														? 'text-white'
+														: stock > 0
+															? 'text-ok'
+															: 'text-danger'
 												}`}>
 												{stock}
 											</div>

@@ -133,9 +133,12 @@ export default function POItemTable({
 				Add Items in Bulk
 			</button>
 
-			<div className="text-[13px] text-body-3">
+			{/* Kept quiet: a running total is for glancing at, not a figure the
+			    page is built around. Nudged in from the edge so it sits under the
+			    quantity column rather than the table's outer rule. */}
+			<div className="text-[12.5px] text-muted pr-6">
 				Total Quantity{' '}
-				<span className="num font-bold text-heading text-[15px] ml-1.5">
+				<span className="num text-muted-2 ml-1">
 					{totalQty.toLocaleString('en-IN')}
 				</span>
 			</div>

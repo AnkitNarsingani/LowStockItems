@@ -7,6 +7,7 @@ import {
 	customFieldByLabel,
 	TRANSACTION_TYPES,
 } from '../ZohoAPI';
+import TransactionDocument from './TransactionDocument';
 
 const PER_PAGE = 5;
 const TYPE_KEYS = [
@@ -87,6 +88,38 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 	const [loadingTx, setLoadingTx] = useState(false);
 	const [txError, setTxError] = useState(null);
 
+	// The panel slides in on mount and out on close, so it arrives from the edge
+	// it is docked to rather than appearing.
+	const [shown, setShown] = useState(false);
+	useEffect(() => {
+		const id = requestAnimationFrame(() => setShown(true));
+		return () => cancelAnimationFrame(id);
+	}, []);
+
+	const close = useCallback(() => {
+		setShown(false);
+		// Long enough for the slide to finish; the parent unmounts us after.
+		setTimeout(onClose, 220);
+	}, [onClose]);
+
+	// A document opened from the list. `docOpen` drives the transform while
+	// `openDoc` keeps it mounted, so sliding out shows the document leaving
+	// rather than an empty panel.
+	const [openDoc, setOpenDoc] = useState(null);
+	const [docOpen, setDocOpen] = useState(false);
+
+	const openDocument = useCallback(
+		(row) => {
+			setOpenDoc({ type, id: row.id, number: row.number });
+			requestAnimationFrame(() => setDocOpen(true));
+		},
+		[type],
+	);
+	const closeDocument = useCallback(() => {
+		setDocOpen(false);
+		setTimeout(() => setOpenDoc(null), 300);
+	}, []);
+
 	const [typeOpen, setTypeOpen] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(false);
 	const typeRef = useRef(null);
@@ -101,10 +134,15 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 	}, []);
 
 	useEffect(() => {
-		const onKey = (e) => e.key === 'Escape' && onClose();
+		const onKey = (e) => {
+			if (e.key !== 'Escape') return;
+			// Escape steps back one layer at a time.
+			if (docOpen) closeDocument();
+			else close();
+		};
 		document.addEventListener('keydown', onKey);
 		return () => document.removeEventListener('keydown', onKey);
-	}, [onClose]);
+	}, [docOpen, closeDocument, close]);
 
 	useEffect(() => {
 		const onDown = (e) => {
@@ -207,10 +245,15 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 
 	return (
 		<div
-			className="fixed inset-0 z-[95] flex justify-end"
+			className={`fixed inset-0 z-[95] flex justify-end transition-opacity duration-200 ${
+				shown ? 'opacity-100' : 'opacity-0'
+			}`}
 			style={{ background: 'rgba(20,30,50,.32)' }}
-			onClick={(e) => e.target === e.currentTarget && onClose()}>
-			<div className="w-[520px] max-w-full h-full bg-surface shadow-[-12px_0_40px_rgba(10,20,40,.18)] flex flex-col">
+			onClick={(e) => e.target === e.currentTarget && close()}>
+			<div
+				className={`relative overflow-hidden w-[880px] max-w-full h-full bg-surface shadow-[-12px_0_40px_rgba(10,20,40,.18)] flex flex-col transition-transform duration-200 ease-out ${
+					shown ? 'translate-x-0' : 'translate-x-full'
+				}`}>
 				{/* Header */}
 				<div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-line">
 					<div className="min-w-0">
@@ -226,7 +269,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 						</div>
 					</div>
 					<button
-						onClick={onClose}
+						onClick={close}
 						aria-label="Close"
 						className="w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50 flex-shrink-0">
 						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -386,9 +429,12 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 														{r.contact}
 													</div>
 													<div className="flex items-center gap-2 mt-1">
-														<span className="text-[12.5px] text-link num">
+														<button
+															onClick={() => openDocument(r)}
+															title={`Open ${r.number}`}
+															className="text-[12.5px] text-link num bg-transparent border-none p-0 cursor-pointer hover:text-link-hover hover:underline">
 															{r.number}
-														</span>
+														</button>
 														<span className="text-[12px] text-muted-2 num">
 															{fmtDate(r.date)}
 														</span>
@@ -445,6 +491,24 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 								</>
 							)}
 						</div>
+					)}
+				</div>
+
+				{/* The document, over the whole panel. Sliding in from the right
+				    keeps the direction of travel consistent: the panel came from
+				    the right edge, and this comes from the same place, so Back
+				    reads as going back the way you came. */}
+				<div
+					className={`absolute inset-0 bg-surface transition-transform duration-300 ease-out ${
+						docOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+					}`}>
+					{openDoc && (
+						<TransactionDocument
+							type={openDoc.type}
+							docId={openDoc.id}
+							number={openDoc.number}
+							onBack={closeDocument}
+						/>
 					)}
 				</div>
 			</div>
