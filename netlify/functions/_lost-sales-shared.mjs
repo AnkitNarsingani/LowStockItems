@@ -60,10 +60,15 @@ export function validate(payload) {
 	if (!isValidDate(payload?.date)) {
 		problems.push('date must be a real calendar date in YYYY-MM-DD form.');
 	} else {
-		// Compare date-only strings so a client in a timezone ahead of the server
-		// is not rejected for "today".
-		const today = new Date().toISOString().slice(0, 10);
-		if (payload.date > today) problems.push('date cannot be in the future.');
+		// The function runs in UTC while the people using it are in IST (+5:30),
+		// so between midnight and 05:30 local their "today" is still yesterday by
+		// UTC — comparing against the server's own date rejects a perfectly
+		// ordinary entry. Allowing one day of slack covers every timezone ahead
+		// of UTC. The client already limits the picker to the user's local today.
+		const limit = new Date(Date.now() + 24 * 3600 * 1000)
+			.toISOString()
+			.slice(0, 10);
+		if (payload.date > limit) problems.push('date cannot be in the future.');
 	}
 
 	const hasItem =
