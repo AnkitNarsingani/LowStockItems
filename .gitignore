@@ -142,3 +142,7 @@ vite.config.ts.timestamp-*
 Claude.md
 # Local Netlify folder
 .netlify
+
+# Build output — Netlify builds this from source on every deploy.
+# It was only tracked for the old gh-pages deploy, which is gone.
+/build
