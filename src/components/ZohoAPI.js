@@ -84,6 +84,38 @@ async function getOpenPOItemIds() {
 
 // ─── STEP 3: enrich a single item ────────────────────────────────────────────
 
+// Merge an item detail record onto a list record. Split out of enrichSingleItem
+// so the New PO page can rehydrate an item from its id alone (mapItemDetail(d, d))
+// and get exactly the shape fetchItems produces.
+function mapItemDetail(item, d) {
+	const taxIdInter =
+		d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')
+			?.tax_id || null;
+	const taxIdIntra =
+		d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')
+			?.tax_id || null;
+
+	return {
+		...item,
+		vendor_id: d.vendor_id || null,
+		vendor_name: d.vendor_name || 'Unknown Vendor',
+		brand: d.brand || 'Unknown Brand',
+		manufacturer: d.manufacturer || 'Unknown Manufacturer',
+		// PO rate — use purchase rate, fall back to selling rate
+		purchase_rate: d.purchase_rate || d.rate || 0,
+		purchase_account_id: d.purchase_account_id || null,
+		// Store both intra and inter tax IDs — chosen at PO creation time
+		tax_id_intra: taxIdIntra,
+		tax_id_inter: taxIdInter,
+		tax_id: d.tax_id || d.purchase_tax_id || taxIdIntra || taxIdInter || null,
+		// Quantity fields matching the 'Populate Qty' Deluge script
+		available_stock: d.available_stock ?? d.stock_on_hand ?? 0,
+		reorder_level: d.reorder_level ?? null,
+		created_time: d.created_time || null,
+		minimum_order_quantity: d.minimum_order_quantity || 0,
+	};
+}
+
 async function enrichSingleItem(item) {
 	try {
 		const url = `${BASE_ITEMS}/items/${item.item_id}?organization_id=${ORG_ID}`;
@@ -92,47 +124,50 @@ async function enrichSingleItem(item) {
 
 		await delay(300);
 
-		const d = data.item;
-
-		const taxIdInter =
-			d.item_tax_preferences?.find((p) => p.tax_specification === 'inter')
-				?.tax_id || null;
-		const taxIdIntra =
-			d.item_tax_preferences?.find((p) => p.tax_specification === 'intra')
-				?.tax_id || null;
-
-		return {
-			...item,
-			vendor_id: d.vendor_id || null,
-			vendor_name: d.vendor_name || 'Unknown Vendor',
-			brand: d.brand || 'Unknown Brand',
-			manufacturer: d.manufacturer || 'Unknown Manufacturer',
-			// PO rate — use purchase rate, fall back to selling rate
-			purchase_rate: d.purchase_rate || d.rate || 0,
-			purchase_account_id: d.purchase_account_id || null,
-			// Store both intra and inter tax IDs — chosen at PO creation time
-			tax_id_intra: taxIdIntra,
-			tax_id_inter: taxIdInter,
-			tax_id: d.tax_id || d.purchase_tax_id || taxIdIntra || taxIdInter || null,
-			// Quantity fields matching the 'Populate Qty' Deluge script
-			available_stock: d.available_stock ?? d.stock_on_hand ?? 0,
-			reorder_level: d.reorder_level ?? null,
-			created_time: d.created_time || null,
-			minimum_order_quantity: d.minimum_order_quantity || 0,
-		};
+		return mapItemDetail(item, data.item);
 	} catch {
 		return item;
 	}
 }
 
-// ─── SALES: quantity sold for an item over last 6 months ─────────────────────
+// Fetch one item by id in the same shape fetchItems produces. Used when the New
+// PO page is opened by direct link or survives a hard refresh, where the router
+// state carrying the selection is gone but the ids are still in the URL.
+export async function getItemById(itemId) {
+	try {
+		const url = `${BASE_ITEMS}/items/${itemId}?organization_id=${ORG_ID}`;
+		const res = await fetchWithRetry(url, { headers: authHeaders() });
+		const data = await res.json();
+		const d = data.item;
+		if (!d) return null;
+		return mapItemDetail(d, d);
+	} catch {
+		return null;
+	}
+}
 
-async function getSalesLast6Months(itemId) {
+export async function getItemsByIds(ids, onProgress) {
+	const out = [];
+	for (const id of ids) {
+		const item = await getItemById(id);
+		if (item) out.push(item);
+		onProgress?.(out.length, ids.length);
+		await delay(300);
+	}
+	return out;
+}
+
+// ─── SALES: quantity sold for an item over a trailing window ─────────────────
+
+export async function getSalesForPeriod(itemId, days) {
 	try {
 		const today = new Date();
 		const toDate = today.toISOString().split('T')[0];
 		const from = new Date(today);
-		from.setMonth(from.getMonth() - 6);
+		// 180 keeps the original calendar-six-months window verbatim so Method 2's
+		// numbers stay bit-identical. Every other window is an exact day count.
+		if (days === 180) from.setMonth(from.getMonth() - 6);
+		else from.setDate(from.getDate() - days);
 		const fromDate = from.toISOString().split('T')[0];
 
 		const params = new URLSearchParams({
@@ -169,10 +204,28 @@ async function getSalesLast6Months(itemId) {
 	}
 }
 
+// Method 2's sales input — MUST PRESERVE. Thin wrapper, unchanged behaviour.
+async function getSalesLast6Months(itemId) {
+	return getSalesForPeriod(itemId, 180);
+}
+
 // ─── BUNDLE ALLOCATION: velocity-weighted qty distribution ────────────────────
 // Mirrors the Deluge 'Populate Qty' bundle logic exactly.
+//
+// METHOD 2 — MUST PRESERVE. The arithmetic below is unchanged, including its
+// known quirks (the min-order floor can push the sum above bundleSize; items at
+// or over max capacity are hard-skipped; zero-selling items get a floor
+// velocity of 1/actualDays). Methods 3–6 in src/lib/allocation.js are the
+// remedy for those; this one stays as-is for comparison.
+//
+// The only addition is an options bag so the preview can feed in already-cached
+// sales figures and skip the pacing delay. Neither affects the result.
 
-async function calculateBundleQuantities(items, bundleSize) {
+export async function calculateBundleQuantities(
+	items,
+	bundleSize,
+	{ getSales = getSalesLast6Months, interDelay = 150 } = {},
+) {
 	const today = new Date();
 	const candidates = [];
 	let totalWeightedNeed = 0;
@@ -186,8 +239,8 @@ async function calculateBundleQuantities(items, bundleSize) {
 		const rawQtyToOrder = maxCap - availStock;
 		if (rawQtyToOrder <= 0) continue;
 
-		const salesLast6Months = await getSalesLast6Months(item.item_id);
-		await delay(150);
+		const salesLast6Months = await getSales(item.item_id);
+		if (interDelay) await delay(interDelay);
 
 		// Actual days: 180, or days since creation if item is younger than 6 months
 		let actualDays = 180;
@@ -295,14 +348,30 @@ async function getBillRateForItem(vendorName, itemId) {
 	}
 }
 
-// ─── VENDOR DETAILS ───────────────────────────────────────────────────────────
+// ─── CONTACT DETAILS ─────────────────────────────────────────────────────────
+// One endpoint serves vendors and customers alike — /contacts/{id} returns the
+// full record, including the addresses and GST fields the list endpoint omits.
+//
+// Cached per session: the PO page reads a vendor on every selection and the
+// create call reads it again moments later; the lost-sale form does the same
+// for customers.
 
-async function getVendorDetails(vendorId) {
+const _contactCache = new Map();
+
+export async function getContactDetails(contactId) {
+	const vendorId = contactId;
+	if (_contactCache.has(vendorId)) return _contactCache.get(vendorId);
 	const url = `${BASE_PROXY}/contacts/${vendorId}?organization_id=${ORG_ID}`;
 	const res = await fetchWithRetry(url, { headers: authHeaders() });
 	const data = await res.json();
-	return data.contact || {};
+	const contact = data.contact || {};
+	// Only cache a real hit, so a transient failure isn't remembered.
+	if (contact.contact_id) _contactCache.set(vendorId, contact);
+	return contact;
 }
+
+// Kept as a name for the PO path, which only ever asks about vendors.
+export const getVendorDetails = getContactDetails;
 
 // ─── DISCOUNT ACCOUNT: cached lookup for "Purchase Discounts" account ID ─────
 
@@ -377,20 +446,121 @@ export async function getVendors() {
 	return allVendors;
 }
 
+// ─── CUSTOMERS: every Zoho customer contact ──────────────────────────────────
+// Mirrors getVendors exactly — same pagination loop, same 300ms pacing, same
+// has_more_page check. Cached for the session; the list is large and rarely
+// changes.
+
+let _customersCache = null;
+
+export async function getCustomers() {
+	if (_customersCache) return _customersCache;
+
+	let page = 1;
+	let allCustomers = [];
+	let hasMore = true;
+
+	while (hasMore) {
+		const url = `${BASE_PROXY}/contacts?organization_id=${ORG_ID}&contact_type=customer&page=${page}&per_page=200`;
+		const res = await fetchWithRetry(url, { headers: authHeaders() });
+		const data = await res.json();
+
+		allCustomers = allCustomers.concat(data.contacts || []);
+		hasMore = data.page_context?.has_more_page;
+		page++;
+		if (hasMore) await delay(300);
+	}
+
+	_customersCache = allCustomers;
+	return allCustomers;
+}
+
+// ─── ALL ITEMS: every Zoho item, for the "add any item" dropdown ─────────────
+// Deliberately unfiltered — the New PO page can add stock that is not low.
+// Cached for the session; the catalogue is large and changes rarely.
+
+let _allItemsCache = null;
+let _allItemsInFlight = null;
+const _allItemsListeners = new Set();
+
+/**
+ * Fetch the whole item catalogue, page by page.
+ *
+ * `onProgress(itemsSoFar, done)` fires after every page so the UI can show
+ * results while the rest is still arriving — the catalogue runs to thousands of
+ * items and waiting for all of it leaves the picker looking hung.
+ *
+ * Concurrent callers share one fetch. That matters: React StrictMode mounts
+ * effects twice in development, which otherwise starts two full paginations,
+ * doubles the API load and leaves the first one's progress callback orphaned.
+ */
+export async function getAllItems(onProgress) {
+	if (_allItemsCache) {
+		onProgress?.(_allItemsCache, true);
+		return _allItemsCache;
+	}
+
+	if (onProgress) _allItemsListeners.add(onProgress);
+
+	if (!_allItemsInFlight) {
+		_allItemsInFlight = (async () => {
+			let page = 1;
+			let allItems = [];
+			let hasMore = true;
+
+			// Bounded so a malformed page_context can never spin forever.
+			while (hasMore && page <= 100) {
+				const url = `${BASE_ITEMS}/items?organization_id=${ORG_ID}&page=${page}&per_page=200`;
+				const res = await fetchWithRetry(url, { headers: authHeaders() });
+				const data = await res.json();
+
+				if (data.code !== undefined && data.code !== 0) {
+					throw new Error(data.message || 'Could not load the item catalogue.');
+				}
+
+				allItems = allItems.concat(data.items || []);
+				for (const fn of _allItemsListeners) fn(allItems, false);
+
+				hasMore = data.page_context?.has_more_page;
+				page++;
+				if (hasMore) await delay(200);
+			}
+
+			_allItemsCache = allItems;
+			for (const fn of _allItemsListeners) fn(allItems, true);
+			return allItems;
+		})().finally(() => {
+			_allItemsInFlight = null;
+			_allItemsListeners.clear();
+		});
+	}
+
+	return _allItemsInFlight;
+}
+
 // ─── CREATE PO ────────────────────────────────────────────────────────────────
 //
-// bundleSize > 0 → velocity-weighted bundle allocation (mirrors 'Populate Qty')
-// bundleSize = 0 → simple: qty = max_capacity - available_stock
+// Two entry points share every internal below, so a PO is identical in Zoho
+// whichever path built it (GST, discount, round-off, rates, payload shape):
+//
+//   createPurchaseOrderFromLines({...})  — the New PO page. Quantities are
+//                                          decided before the call.
+//   createPurchaseOrder(...)             — deprecated. The old modal signature,
+//                                          which still derives quantities itself.
 
-export async function createPurchaseOrder(
-	vendorId,
-	items,
-	bundleSize = 0,
-	populateRate = false,
-	discount = 0,
-	discountType = '%',
-	roundOff = true,
-) {
+// Method 1 "Simple" — MUST PRESERVE.
+// qty = max_capacity − available_stock (toLong → Math.floor).
+// Returns null for an item that must be dropped from the PO entirely.
+export function simpleQuantityFor(item) {
+	const maxCap = Number(item.cf_maximum_capacity);
+	const availStock = Number(item.available_stock ?? item.stock_on_hand ?? 0);
+	const raw = maxCap - availStock;
+	// Skip items with no max capacity or no qty needed
+	if (isNaN(maxCap) || raw <= 0) return null;
+	return Math.floor(raw);
+}
+
+async function resolvePOContext(vendorId, discount) {
 	const [vendor, orgState, discountAccountId] = await Promise.all([
 		getVendorDetails(vendorId),
 		getOrgState(),
@@ -404,66 +574,40 @@ export async function createPurchaseOrder(
 	const isInterstate =
 		vendorStateCode && orgStateCode ? vendorStateCode !== orgStateCode : true; // default to interstate (IGST) if state info is unavailable
 
-	// Bundle mode needs sales data per item — calculate before building line items
-	let qtyMap = null;
-	if (bundleSize > 0) {
-		qtyMap = await calculateBundleQuantities(items, bundleSize);
-	}
+	return { vendor, isInterstate, discountAccountId };
+}
 
-	// Rate lookup: fetch most recent bill rate per item from this vendor
-	const billRateMap = {};
-	if (populateRate && vendor.contact_name) {
-		for (const item of items) {
-			const rate = await getBillRateForItem(vendor.contact_name, item.item_id);
-			if (rate !== null) billRateMap[item.item_id] = rate;
-			await delay(150);
-		}
-	}
+function buildPOLine(item, quantity, rate, isInterstate) {
+	const line = {
+		item_id: item.item_id,
+		name: item.name,
+		quantity,
+		rate,
+	};
 
-	const lineItems = items.flatMap((item) => {
-		let quantity;
+	if (item.unit) line.unit = item.unit;
+	if (item.hsn_or_sac) line.hsn_or_sac = item.hsn_or_sac;
+	if (item.purchase_account_id) line.account_id = item.purchase_account_id;
 
-		if (qtyMap !== null) {
-			// Bundle mode: only include items that received an allocation
-			// (overflow and zero-weight items are excluded, matching Deluge behaviour)
-			if (qtyMap[item.item_id] === undefined) return [];
-			quantity = qtyMap[item.item_id];
-		} else {
-			// Simple mode: qty = max_capacity - available_stock (toLong → Math.floor)
-			const maxCap = Number(item.cf_maximum_capacity);
-			const availStock = Number(
-				item.available_stock ?? item.stock_on_hand ?? 0,
-			);
-			const raw = maxCap - availStock;
-			// Skip items with no max capacity or no qty needed
-			if (isNaN(maxCap) || raw <= 0) return [];
-			quantity = Math.floor(raw);
-		}
+	const taxId = isInterstate
+		? item.tax_id_inter || item.tax_id
+		: item.tax_id_intra || item.tax_id;
+	if (taxId) line.tax_id = taxId;
 
-		// Rate: bill lookup when enabled; 0 when populate rate is off (user fills manually in Zoho)
-		const rate = populateRate
-			? (billRateMap[item.item_id] ?? item.purchase_rate ?? item.rate ?? 0)
-			: 0;
+	return line;
+}
 
-		const line = {
-			item_id: item.item_id,
-			name: item.name,
-			quantity,
-			rate,
-		};
-
-		if (item.unit) line.unit = item.unit;
-		if (item.hsn_or_sac) line.hsn_or_sac = item.hsn_or_sac;
-		if (item.purchase_account_id) line.account_id = item.purchase_account_id;
-
-		const taxId = isInterstate
-			? item.tax_id_inter || item.tax_id
-			: item.tax_id_intra || item.tax_id;
-		if (taxId) line.tax_id = taxId;
-
-		return [line];
-	});
-
+function buildPOBody(
+	vendorId,
+	vendor,
+	lineItems,
+	discount,
+	discountType,
+	discountAccountId,
+	// A manual adjustment typed on the page. The automatic round-off path leaves
+	// this at 0 and patches the value in afterwards, once Zoho reports the total.
+	adjustment = 0,
+) {
 	const today = new Date().toISOString().split('T')[0];
 
 	const body = { vendor_id: vendorId, date: today, line_items: lineItems };
@@ -482,6 +626,15 @@ export async function createPurchaseOrder(
 		if (discountAccountId) body.discount_account_id = discountAccountId;
 	}
 
+	if (adjustment) {
+		body.adjustment = adjustment;
+		body.adjustment_description = 'Adjustment';
+	}
+
+	return body;
+}
+
+async function submitPO(body, roundOff) {
 	const url = `${BASE_PROXY}/purchaseorders?organization_id=${ORG_ID}`;
 	const res = await fetchWithRetry(url, {
 		method: 'POST',
@@ -522,6 +675,151 @@ export async function createPurchaseOrder(
 	}
 
 	return po;
+}
+
+/**
+ * Create a PO from lines whose quantities have already been decided — by the
+ * method picker's preview or by manual edits on the New PO page.
+ *
+ * lines: [{ item_id, quantity, rate?, isFreeText, name?, ...item fields }]
+ */
+export async function createPurchaseOrderFromLines({
+	vendorId,
+	lines,
+	populateRate = false,
+	discount = 0,
+	discountType = '%',
+	roundOff = true,
+	adjustment = 0,
+}) {
+	const { vendor, isInterstate, discountAccountId } = await resolvePOContext(
+		vendorId,
+		discount,
+	);
+
+	// Fill any rate the page left blank from this vendor's most recent bill —
+	// the same lookup the modal used.
+	const billRateMap = {};
+	if (populateRate && vendor.contact_name) {
+		for (const line of lines) {
+			if (line.isFreeText || line.rate != null) continue;
+			const rate = await getBillRateForItem(vendor.contact_name, line.item_id);
+			if (rate !== null) billRateMap[line.item_id] = rate;
+			await delay(150);
+		}
+	}
+
+	const lineItems = lines.flatMap((line) => {
+		// §A.3: a line allocated zero is dropped from the PO.
+		const quantity = Number(line.quantity) || 0;
+		if (quantity <= 0) return [];
+
+		// Free-text lines reference no Zoho item — send them as a description-only
+		// ad-hoc line rather than silently creating an item.
+		if (line.isFreeText) {
+			return [
+				{ name: line.name, quantity, rate: Number(line.rate) || 0 },
+			];
+		}
+
+		const hasRate = line.rate != null && line.rate !== '';
+		const rate = hasRate
+			? Number(line.rate)
+			: populateRate
+				? (billRateMap[line.item_id] ?? line.purchase_rate ?? 0)
+				: 0;
+
+		const built = buildPOLine(line, quantity, rate, isInterstate);
+		// A per-line account or tax chosen on the page overrides the item default.
+		if (line.account_id) built.account_id = line.account_id;
+		if (line.tax_id_override) built.tax_id = line.tax_id_override;
+		return [built];
+	});
+
+	if (lineItems.length === 0) {
+		throw new Error('No line items with a quantity above zero.');
+	}
+
+	const body = buildPOBody(
+		vendorId,
+		vendor,
+		lineItems,
+		discount,
+		discountType,
+		discountAccountId,
+		roundOff ? 0 : Number(adjustment) || 0,
+	);
+
+	return submitPO(body, roundOff);
+}
+
+/**
+ * @deprecated Superseded by createPurchaseOrderFromLines. Kept because it is
+ * the exact path the old modal used: quantities are still derived inside the
+ * call by Method 1 (bundleSize = 0) or Method 2 (bundleSize > 0).
+ */
+export async function createPurchaseOrder(
+	vendorId,
+	items,
+	bundleSize = 0,
+	populateRate = false,
+	discount = 0,
+	discountType = '%',
+	roundOff = true,
+) {
+	const { vendor, isInterstate, discountAccountId } = await resolvePOContext(
+		vendorId,
+		discount,
+	);
+
+	// Bundle mode needs sales data per item — calculate before building line items
+	let qtyMap = null;
+	if (bundleSize > 0) {
+		qtyMap = await calculateBundleQuantities(items, bundleSize);
+	}
+
+	// Rate lookup: fetch most recent bill rate per item from this vendor
+	const billRateMap = {};
+	if (populateRate && vendor.contact_name) {
+		for (const item of items) {
+			const rate = await getBillRateForItem(vendor.contact_name, item.item_id);
+			if (rate !== null) billRateMap[item.item_id] = rate;
+			await delay(150);
+		}
+	}
+
+	const lineItems = items.flatMap((item) => {
+		let quantity;
+
+		if (qtyMap !== null) {
+			// Bundle mode: only include items that received an allocation
+			// (overflow and zero-weight items are excluded, matching Deluge behaviour)
+			if (qtyMap[item.item_id] === undefined) return [];
+			quantity = qtyMap[item.item_id];
+		} else {
+			const simple = simpleQuantityFor(item);
+			if (simple === null) return [];
+			quantity = simple;
+		}
+
+		// Rate: bill lookup when enabled; 0 when populate rate is off (user fills manually in Zoho)
+		const rate = populateRate
+			? (billRateMap[item.item_id] ?? item.purchase_rate ?? item.rate ?? 0)
+			: 0;
+
+		return [buildPOLine(item, quantity, rate, isInterstate)];
+	});
+
+	const body = buildPOBody(
+		vendorId,
+		vendor,
+		lineItems,
+		discount,
+		discountType,
+		discountAccountId,
+	);
+
+	return submitPO(body, roundOff);
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────

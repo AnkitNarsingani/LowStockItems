@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "build"
+  functions = "netlify/functions"
+
+# Makes BrowserRouter work on refresh and direct links (/po/new).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

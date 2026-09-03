@@ -1,101 +1,72 @@
 import './ItemRow.css';
+import Checkbox from './Checkbox';
 
-export default function ItemRow({ item, toggleSelect }) {
-	const maxCapacity = Number(item.cf_maximum_capacity);
-	const stockOnHand = Number(item.stock_on_hand);
-	const reorderLevel = item.reorder_level;
+// Shared so the header and the rows can never drift apart.
+export const LOW_TABLE_COLS = '38px 2.4fr 1fr 1fr 1.2fr 1.2fr 1.3fr 0.9fr';
 
-	// Status: critical = zero/negative, warning = low but positive, ok = fine
-	const status =
-		stockOnHand < 0 || stockOnHand === 0
-			? 'critical'
-			: !isNaN(maxCapacity) && stockOnHand < maxCapacity * 0.3
-				? 'warning'
-				: 'ok';
+const money = (v) =>
+	'₹' +
+	Number(v || 0).toLocaleString('en-IN', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	});
 
-	const stockClass =
-		status === 'critical'
-			? 'text-red-500 font-medium'
-			: status === 'warning'
-				? 'text-amber-600 font-medium'
-				: 'text-gray-500';
+const dec2 = (v) => (v == null || v === '' ? '—' : Number(v).toFixed(2));
+
+export default function ItemRow({ item, selected, toggleSelect }) {
+	const stock = Number(item.stock_on_hand);
+	const reorder = item.reorder_level;
+
+	// Design's stockColorFor: red at or below zero, amber at or below the
+	// reorder point, green otherwise.
+	const stockColor =
+		stock <= 0
+			? 'text-danger'
+			: reorder != null && stock <= Number(reorder)
+				? 'text-warn'
+				: 'text-ok';
 
 	return (
-		<tr
-			className={`item-row border-b border-gray-50 cursor-pointer transition-colors duration-75 ${
-				item.selected ? 'bg-blue-50' : 'hover:bg-gray-50'
-			}`}>
-			{/* Checkbox */}
-			<td className="p-2 text-center w-9">
-				<input
-					type="checkbox"
-					checked={!!item.selected}
+		<div
+			className={`item-row grid px-[18px] py-[13px] border-b border-line-4 text-[13.5px] items-center ${
+				selected ? 'bg-row-selected' : 'bg-surface'
+			}`}
+			style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
+			<div>
+				<Checkbox
+					checked={selected}
 					onChange={() => toggleSelect?.(item.item_id)}
-					className="form-checkbox h-3.5 w-3.5 text-blue-500 rounded"
-					aria-label={`Select ${item.name}`}
-					onClick={(e) => e.stopPropagation()}
 				/>
-			</td>
+			</div>
 
-			{/* Item name */}
-			<td
-				className="p-2 text-left w-48"
-				onClick={() =>
-					window.open(
-						`https://books.zoho.com/app#/items/${item.item_id}`,
-						'_blank',
-					)
-				}>
-				<span className="text-blue-600 hover:underline text-xs cursor-pointer">
+			<div className="min-w-0">
+				<span
+					onClick={() =>
+						window.open(
+							`https://books.zoho.com/app#/items/${item.item_id}`,
+							'_blank',
+						)
+					}
+					className="text-link font-bold cursor-pointer hover:underline break-words">
 					{item.name}
 				</span>
-			</td>
+			</div>
 
-			{/* SKU */}
-			<td className="p-2 text-left w-28">
-				<span className="font-mono text-xs text-gray-500">{item.sku}</span>
-			</td>
+			<div className="num text-body-3 truncate">{item.sku || '—'}</div>
 
-			{/* Rate */}
-			<td className="p-2 text-right w-24 tabular-nums text-xs text-gray-700">
-				{item.currency_code}
-				{'₹'}
-				{typeof item.rate === 'number'
-					? item.rate.toLocaleString('en-IN', {
-							minimumFractionDigits: 2,
-							maximumFractionDigits: 2,
-						})
-					: item.rate}
-			</td>
+			<div className="num text-right pr-2.5 text-body">{money(item.rate)}</div>
 
-			{/* Unit */}
-			<td className="p-2 text-left w-16">
-				<span className="text-xs bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 text-gray-500">
-					{item.unit}
-				</span>
-			</td>
+			<div className={`num text-right pr-2.5 font-bold ${stockColor}`}>
+				{dec2(item.stock_on_hand)}
+			</div>
 
-			{/* HSN / SAC */}
-			<td className="p-2 text-left w-24">
-				<span className="font-mono text-xs text-gray-400">
-					{item.hsn_or_sac}
-				</span>
-			</td>
+			<div className="num text-right pr-2.5 text-body-3">{dec2(reorder)}</div>
 
-			{/* Reorder qty */}
-			<td className="p-2 text-right w-24 text-xs text-gray-500 tabular-nums">
-				{reorderLevel != null ? reorderLevel : '—'}
-			</td>
+			<div className="num text-right pr-2.5 text-body-3">
+				{dec2(item.cf_maximum_capacity)}
+			</div>
 
-			{/* Max capacity */}
-			<td className="p-2 text-right w-24 text-xs text-gray-500 tabular-nums">
-				{isNaN(maxCapacity) ? '—' : maxCapacity}
-			</td>
-
-			{/* On hand */}
-			<td className="p-2 text-right w-24 tabular-nums">
-				<span className={`text-xs ${stockClass}`}>{stockOnHand}</span>
-			</td>
-		</tr>
+			<div className="text-muted truncate">{item.unit || 'box'}</div>
+		</div>
 	);
 }

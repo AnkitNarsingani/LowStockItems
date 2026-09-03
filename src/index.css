@@ -1,21 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html {
-	font-size: 18px;
+/* Base styles mirror the Claude Design canvas (docs/design/LowStockItems.dc.html). */
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
 }
 
 body {
-	margin: 0;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-		'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+	font-family: 'Lato', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
 		sans-serif;
+	color: #333a45;
+	background: #eef0f3;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+a {
+	color: #2f7be0;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #1f6ad0;
+	text-decoration: underline;
+}
+
+input,
+button,
+select {
+	font-family: inherit;
+}
+
+input::placeholder {
+	color: #a7adb5;
+}
+
+/* Strip the native number spinners. Quantities, rates and adjustments are all
+   typed, and the arrows crowd the right edge of these narrow fields. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	appearance: none;
+	margin: 0;
+}
+
+input[type='number'] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+/* Tabular figures for every number in a table or total. */
+.num {
+	font-variant-numeric: tabular-nums;
+}
+
+/* Undo toast: the bar drains over the life of the toast, so the time left to
+   undo is visible rather than guessed. Driven by CSS so it stays smooth
+   without a render on every frame. */
+@keyframes toastDrain {
+	from {
+		transform: scaleX(1);
+	}
+	to {
+		transform: scaleX(0);
+	}
+}
+
+.toast-drain {
+	transform-origin: left;
+	animation: toastDrain linear forwards;
+}
+
+@keyframes toastRise {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.toast-rise {
+	animation: toastRise 0.18s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.toast-drain,
+	.toast-rise {
+		animation: none;
+	}
 }
 
 code {
 	font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
 		monospace;
+}
+
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #cfd4da;
+	border-radius: 6px;
+	border: 2px solid transparent;
+	background-clip: content-box;
 }

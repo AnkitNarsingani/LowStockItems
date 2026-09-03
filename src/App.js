@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
+import AppShell from './components/AppShell';
 import ZohoItemTable from './components/ZohoItemTable';
+import NewPOPage from './pages/NewPOPage';
+import LostSalesListPage from './pages/LostSalesListPage';
+import LostSaleFormPage from './pages/LostSaleFormPage';
+import ReorderSuggestionsPage from './pages/ReorderSuggestionsPage';
 
 // === AUTH CONSTANTS ===
 const ZOHO_CLIENT_ID = process.env.REACT_APP_ZOHO_CLIENT_ID;
@@ -119,18 +125,39 @@ function App() {
 	};
 
 
-	return (
-		<div className="App">
-			{!isAuthenticated ? (
+	// Auth gating is unchanged: unauthenticated users get the Zoho login button
+	// on every route.
+	if (!isAuthenticated) {
+		return (
+			<div className="App">
 				<div style={styles.loginContainer}>
 					<button onClick={handleLogin} style={styles.loginButton}>
 						Login with Zoho
 					</button>
 				</div>
-			) : (
-				<ZohoItemTable />
-			)}
-		</div>
+			</div>
+		);
+	}
+
+	// BrowserRouter, not HashRouter — the OAuth implicit grant already parses
+	// window.location.hash for the access token and a hash router would collide
+	// with it. Needs the SPA rewrite in netlify.toml to survive a refresh.
+	return (
+		<BrowserRouter>
+			<Routes>
+				<Route element={<AppShell />}>
+					<Route path="/" element={<ZohoItemTable />} />
+					<Route path="/po/new" element={<NewPOPage />} />
+					<Route path="/lost-sales" element={<LostSalesListPage />} />
+					<Route path="/lost-sales/new" element={<LostSaleFormPage />} />
+					<Route
+						path="/reorder-suggestions"
+						element={<ReorderSuggestionsPage />}
+					/>
+					<Route path="*" element={<Navigate to="/" replace />} />
+				</Route>
+			</Routes>
+		</BrowserRouter>
 	);
 }
 

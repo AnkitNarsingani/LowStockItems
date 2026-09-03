@@ -5,11 +5,10 @@ import React, {
 	useMemo,
 	useRef,
 } from 'react';
-import { fetchItems, createPurchaseOrder } from './ZohoAPI';
-import { logout } from '../App';
-import ItemRow from './ItemRow';
-import VendorSelectModal from './VendorSelectModal';
-import CreatePOModal from './CreatePOModal';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { fetchItems } from './ZohoAPI';
+import ItemRow, { LOW_TABLE_COLS } from './ItemRow';
+import Checkbox from './Checkbox';
 import './ItemRow.css';
 
 const GROUP_BY_OPTIONS = {
@@ -24,26 +23,34 @@ const UNKNOWN_VALUES = {
 	manufacturer: 'Unknown Manufacturer',
 };
 
+const GROUP_TABS = [
+	{ id: GROUP_BY_OPTIONS.VENDOR, label: 'Vendor' },
+	{ id: GROUP_BY_OPTIONS.BRAND, label: 'Brand' },
+	{ id: GROUP_BY_OPTIONS.MANUFACTURER, label: 'Manufacturer' },
+];
+
 export default function ZohoItemsTable() {
+	const navigate = useNavigate();
+	const location = useLocation();
+
+	// The New PO page closes itself on success and hands the confirmation over
+	// through router state.
+	const [poResult, setPoResult] = useState(null);
+
 	const [items, setItems] = useState([]);
 	const [groupBy, setGroupBy] = useState(GROUP_BY_OPTIONS.VENDOR);
 	const [search, setSearch] = useState('');
+	// Groups start collapsed, so the page opens as a short list of groups rather
+	// than every item at once. Tracking the *expanded* ones means an empty set is
+	// the default state, and a change of grouping collapses everything again.
 	const [expandedGroups, setExpandedGroups] = useState(new Set());
 	const [loading, setLoading] = useState(true);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [totalCount, setTotalCount] = useState(0);
 
-	// Selection state
 	const [selectedItemIds, setSelectedItemIds] = useState(new Set());
 
-	// PO creation state
-	const [showCreatePOModal, setShowCreatePOModal] = useState(false);
-	const [showVendorModal, setShowVendorModal] = useState(false);
-	const [creatingPO, setCreatingPO] = useState(false);
-	const [poResult, setPoResult] = useState(null);
-
 	const itemCacheRef = useRef(null);
-	const pendingPOOptsRef = useRef({ bundleSize: 0, populateRate: false, discount: 0, discountType: '%', roundOff: true });
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -91,7 +98,18 @@ export default function ZohoItemsTable() {
 		});
 	}, []);
 
-	// Selection handlers
+	const groupKeys = Object.keys(groupedItems);
+	const allCollapsed =
+		groupKeys.length > 0 && groupKeys.every((k) => !expandedGroups.has(k));
+
+	const toggleExpandAll = useCallback(() => {
+		setExpandedGroups((prev) => {
+			const keys = Object.keys(groupedItems);
+			const anyExpanded = keys.some((k) => prev.has(k));
+			return anyExpanded ? new Set() : new Set(keys);
+		});
+	}, [groupedItems]);
+
 	const toggleSelect = useCallback((itemId) => {
 		setSelectedItemIds((prev) => {
 			const next = new Set(prev);
@@ -105,8 +123,19 @@ export default function ZohoItemsTable() {
 		filteredItems.every((item) => selectedItemIds.has(item.item_id));
 
 	const someFilteredSelected =
-		filteredItems.some((item) => selectedItemIds.has(item.item_id)) &&
-		!allFilteredSelected;
+		!allFilteredSelected &&
+		filteredItems.some((item) => selectedItemIds.has(item.item_id));
+
+	// Whole-group selection from the group header.
+	const toggleGroupSelection = useCallback((groupItems) => {
+		setSelectedItemIds((prev) => {
+			const next = new Set(prev);
+			const allIn = groupItems.every((i) => next.has(i.item_id));
+			if (allIn) groupItems.forEach((i) => next.delete(i.item_id));
+			else groupItems.forEach((i) => next.add(i.item_id));
+			return next;
+		});
+	}, []);
 
 	const toggleSelectAll = useCallback(() => {
 		setSelectedItemIds((prev) => {
@@ -120,62 +149,34 @@ export default function ZohoItemsTable() {
 		});
 	}, [filteredItems]);
 
-	// Selected items derived from current items list
 	const selectedItems = useMemo(
 		() => items.filter((item) => selectedItemIds.has(item.item_id)),
 		[items, selectedItemIds],
 	);
 
-	// PO creation — defined first so handleCreatePOClick can safely reference it
-	const doCreatePO = useCallback(
-		async (vendorId, itemsForPO, bundle, populateRate, discount, discountType, roundOff) => {
-			setCreatingPO(true);
-			setPoResult(null);
-			try {
-				const bundleNum = Number(bundle) > 0 ? Number(bundle) : 0;
-				const po = await createPurchaseOrder(vendorId, itemsForPO, bundleNum, populateRate, discount, discountType, roundOff);
-				setPoResult({
-					success: true,
-					message: `Purchase Order ${po.purchaseorder_number || ''} created in draft.`,
-					poId: po.purchaseorder_id,
-				});
-				setSelectedItemIds(new Set());
-				setShowVendorModal(false);
-			} catch (err) {
-				setPoResult({ success: false, message: err.message || 'Failed to create PO.' });
-				setShowVendorModal(false);
-			} finally {
-				setCreatingPO(false);
+	// Carry the selection to the New PO page via router state, with the ids also
+	// in the query string so a hard refresh can re-fetch them from Zoho.
+	const openNewPO = useCallback(
+		(withSelection) => {
+			if (!withSelection || selectedItems.length === 0) {
+				navigate('/po/new');
+				return;
 			}
+			const ids = selectedItems.map((i) => i.item_id).join(',');
+			navigate(`/po/new?items=${encodeURIComponent(ids)}`, {
+				state: { items: selectedItems },
+			});
 		},
-		[],
+		[navigate, selectedItems],
 	);
 
-	// Step 1: open the options modal
-	const handleCreatePOClick = useCallback(() => {
-		if (selectedItems.length === 0) return;
-		setShowCreatePOModal(true);
-	}, [selectedItems]);
-
-	// Step 2: options confirmed → check vendors
-	const handleCreatePOConfirm = useCallback(async ({ bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro }) => {
-		pendingPOOptsRef.current = { bundleSize: bs, populateRate: pr, discount: dc, discountType: dt, roundOff: ro };
-
-		const uniqueVendorIds = new Set(
-			selectedItems.map((i) => i.vendor_id).filter(Boolean),
-		);
-
-		if (uniqueVendorIds.size === 1) {
-			// Single vendor: keep modal open (showing spinner) until PO is created
-			const vendorId = [...uniqueVendorIds][0];
-			await doCreatePO(vendorId, selectedItems, bs, pr, dc, dt, ro);
-			setShowCreatePOModal(false);
-		} else {
-			// Multiple vendors: close and let the vendor-select modal take over
-			setShowCreatePOModal(false);
-			setShowVendorModal(true);
-		}
-	}, [selectedItems, doCreatePO]);
+	useEffect(() => {
+		const handed = location.state?.poResult;
+		if (!handed) return;
+		setPoResult(handed);
+		// Clear the state so a refresh or a Back does not replay the banner.
+		navigate(location.pathname, { replace: true, state: null });
+	}, [location.state, location.pathname, navigate]);
 
 	useEffect(() => {
 		const loadItems = async () => {
@@ -211,7 +212,7 @@ export default function ZohoItemsTable() {
 		loadItems();
 	}, []);
 
-	const groupByLabel =
+	const groupMetricLabel =
 		groupBy === 'brand'
 			? 'Brands'
 			: groupBy === 'manufacturer'
@@ -219,339 +220,267 @@ export default function ZohoItemsTable() {
 				: 'Vendors';
 
 	return (
-		<div className="flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden w-full h-full">
-			{/* TOOLBAR */}
-			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-wrap gap-2">
-				<div className="flex items-center gap-2">
-					<h1 className="text-sm font-medium text-gray-900">Low stock items</h1>
-					<span className="text-xs bg-gray-100 text-gray-500 border border-gray-200 rounded-full px-2 py-0.5">
-						{filteredItems.length} items
-					</span>
-					{selectedItemIds.size > 0 && (
-						<span className="text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5">
-							{selectedItemIds.size} selected
-						</span>
-					)}
+		<div className="px-7 pt-[22px] pb-[70px]">
+			{/* Title row */}
+			<div className="flex items-center gap-3 mb-1 flex-wrap">
+				<div className="text-[20px] font-bold text-heading">
+					Low stock items
 				</div>
+				<div className="flex-1" />
 
-				<div className="flex items-center gap-2 flex-wrap">
-					{/* Create PO — visible when ≥1 item selected */}
-					{selectedItemIds.size >= 1 && (
-						<button
-							onClick={handleCreatePOClick}
-							disabled={creatingPO}
-							className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-							{creatingPO ? (
-								<>
-									<span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-									Creating…
-								</>
-							) : (
-								<>
-									<svg className="w-3 h-3" viewBox="0 0 16 16" fill="none">
-										<path
-											d="M8 3v10M3 8h10"
-											stroke="currentColor"
-											strokeWidth="1.75"
-											strokeLinecap="round"
-										/>
-									</svg>
-									Create PO
-								</>
-							)}
-						</button>
-					)}
-
-					<div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
-						<svg
-							className="w-3 h-3 text-gray-400 flex-shrink-0"
-							viewBox="0 0 16 16"
-							fill="none">
-							<circle
-								cx="6.5"
-								cy="6.5"
-								r="5"
-								stroke="currentColor"
-								strokeWidth="1.5"
-							/>
-							<path
-								d="M10.5 10.5L14 14"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-							/>
-						</svg>
-						<input
-							type="text"
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search items…"
-							className="bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none w-32"
-						/>
-					</div>
-
-					<div className="relative">
-						<select
-							value={groupBy}
-							onChange={(e) => {
-								setGroupBy(e.target.value);
-								setExpandedGroups(new Set());
-							}}
-							className="text-xs border border-gray-200 rounded-lg pl-2.5 pr-6 py-1.5 bg-white text-gray-700 appearance-none cursor-pointer outline-none focus:ring-1 focus:ring-blue-200">
-							<option value="vendor">Vendor</option>
-							<option value="brand">Brand</option>
-							<option value="manufacturer">Manufacturer</option>
-						</select>
-						<ChevronIcon />
-					</div>
-
+				{/* One button, not two: with rows selected the useful action is a PO
+				    for that selection, so it takes the New button's place. */}
+				{selectedItemIds.size > 0 ? (
 					<button
-						onClick={logout}
-						className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 cursor-pointer outline-none hover:bg-gray-50">
-						Logout
+						onClick={() => openNewPO(true)}
+						className="h-9 px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer flex items-center gap-[7px]">
+						Create PO
+						<span className="bg-white/25 rounded-[20px] px-2 py-px text-[12px] num">
+							{selectedItemIds.size}
+						</span>
 					</button>
-				</div>
+				) : (
+					<button
+						onClick={() => openNewPO(false)}
+						className="h-9 px-[15px] rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4">
+							<path d="M12 5v14M5 12h14" strokeLinecap="round" />
+						</svg>
+						New
+					</button>
+				)}
 			</div>
 
-			{/* PO result notification */}
+			{/* Toolbar */}
+			<div className="flex items-center gap-2.5 mt-3.5 mb-3.5 flex-wrap">
+				<div className="flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-60 max-w-full">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
+						<circle cx="11" cy="11" r="7" />
+						<path d="M21 21l-4-4" strokeLinecap="round" />
+					</svg>
+					<input
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						placeholder="Search items…"
+						className="border-none outline-none text-[13px] w-full bg-transparent"
+					/>
+				</div>
+
+				<div className="flex-1" />
+
+				<span className="text-[12px] text-muted font-bold">Group by</span>
+				<div className="flex bg-surface-2 border border-line rounded-lg p-[3px] gap-0.5">
+					{GROUP_TABS.map((t) => (
+						<button
+							key={t.id}
+							onClick={() => {
+								setGroupBy(t.id);
+								setExpandedGroups(new Set());
+							}}
+							className={`border-none bg-transparent px-3 py-[5px] rounded-md text-[12.5px] font-bold cursor-pointer whitespace-nowrap ${
+								groupBy === t.id
+									? 'bg-surface text-link shadow-[0_1px_2px_rgba(20,30,50,.12)]'
+									: 'text-muted'
+							}`}>
+							{t.label}
+						</button>
+					))}
+				</div>
+
+				<button
+					onClick={toggleExpandAll}
+					className="h-9 px-[13px] rounded-lg border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer w-20">
+					{allCollapsed ? 'Expand' : 'Collapse'}
+				</button>
+			</div>
+
+			{/* Confirmation handed over by the New PO page */}
 			{poResult && (
 				<div
-					className={`flex items-center justify-between px-4 py-2.5 text-xs border-b ${
+					className={`flex items-center justify-between gap-3 px-4 py-2.5 mb-3.5 rounded-[10px] border text-[13px] ${
 						poResult.success
-							? 'bg-green-50 border-green-100 text-green-700'
-							: 'bg-red-50 border-red-100 text-red-600'
+							? 'bg-green-50 border-green-200 text-ok'
+							: 'bg-red-50 border-danger-border text-danger'
 					}`}>
-					<span>{poResult.message}</span>
-					<button
-						onClick={() => setPoResult(null)}
-						className="ml-4 opacity-60 hover:opacity-100">
-						✕
-					</button>
+					<span className="flex items-center gap-2 min-w-0">
+						{poResult.success && (
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-shrink-0">
+								<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+							</svg>
+						)}
+						<span className="truncate">{poResult.message}</span>
+					</span>
+					<span className="flex items-center gap-3 flex-shrink-0">
+						{poResult.poId && (
+							<button
+								onClick={() =>
+									window.open(
+										`https://books.zoho.com/app#/purchaseorders/${poResult.poId}`,
+										'_blank',
+									)
+								}
+								className="font-bold underline bg-transparent border-none cursor-pointer text-current p-0">
+								View in Zoho
+							</button>
+						)}
+						<button
+							onClick={() => setPoResult(null)}
+							aria-label="Dismiss"
+							className="opacity-60 hover:opacity-100 bg-transparent border-none cursor-pointer text-current">
+							✕
+						</button>
+					</span>
 				</div>
 			)}
 
-			{/* METRIC CARDS */}
-			<div className="grid grid-cols-2 gap-2.5 px-4 py-3 border-b border-gray-100">
-				<MetricCard label="Total SKUs" value={metrics.total} color="default" />
-				<MetricCard label={groupByLabel} value={metrics.groups} color="green" />
+			{/* Metric cards */}
+			<div className="flex gap-4 mb-[18px]">
+				<MetricCard label="Total SKUs" value={metrics.total} />
+				<MetricCard label={groupMetricLabel} value={metrics.groups} accent />
 			</div>
 
 			{/* Loading bar */}
 			{loading && (
-				<div className="px-4 py-2.5 border-b border-gray-100">
+				<div className="bg-surface border border-line rounded-[10px] px-[18px] py-3 mb-3">
 					<div className="flex justify-between items-center mb-1.5">
-						<span className="text-xs text-gray-500">Loading inventory…</span>
-						<span className="text-xs font-medium text-gray-700 tabular-nums">
+						<span className="text-[12.5px] text-muted">Loading inventory…</span>
+						<span className="text-[12.5px] font-bold text-body-3 num">
 							{loadedCount.toLocaleString()} / {totalCount.toLocaleString()}{' '}
 							items loaded
 						</span>
 					</div>
-					<div className="relative w-full h-0.5 bg-gray-100 rounded-full overflow-hidden">
+					<div className="relative w-full h-[3px] bg-line-4 rounded-full overflow-hidden">
 						<div
-							className="progress-bounce absolute h-full bg-blue-500 rounded-full"
+							className="progress-bounce absolute h-full bg-brand rounded-full"
 							style={{ width: '35%' }}
 						/>
 					</div>
 				</div>
 			)}
 
-			{/* TABLE */}
-			<div className="overflow-auto flex-1">
-				<table className="w-full text-xs">
-					<thead>
-						<tr className="sticky top-0 z-10 bg-white border-b border-gray-100">
-							<th className="w-9 p-2 text-center">
-								<input
-									type="checkbox"
-									checked={allFilteredSelected}
-									ref={(el) => {
-										if (el) el.indeterminate = someFilteredSelected;
-									}}
-									onChange={toggleSelectAll}
-									disabled={filteredItems.length === 0}
-									className="form-checkbox h-3.5 w-3.5 text-blue-500 rounded cursor-pointer disabled:cursor-not-allowed"
+			{/* Table */}
+			<div className="bg-surface border border-line rounded-[10px] overflow-hidden">
+				<div
+					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em] items-center"
+					style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
+					<div>
+						<Checkbox
+							checked={allFilteredSelected}
+							indeterminate={someFilteredSelected}
+							onChange={toggleSelectAll}
+							disabled={filteredItems.length === 0}
+							label="Select all items"
+						/>
+					</div>
+					<div>NAME</div>
+					<div>SKU</div>
+					<div className="text-right pr-2.5">RATE</div>
+					<div className="text-right pr-2.5">STOCK ON HAND</div>
+					<div className="text-right pr-2.5">REORDER LEVEL</div>
+					<div className="text-right pr-2.5">MAXIMUM CAPACITY</div>
+					<div>USAGE UNIT</div>
+				</div>
+
+				{Object.entries(groupedItems).map(([group, groupItems]) => {
+					const expanded = expandedGroups.has(group);
+					const groupAll =
+						groupItems.length > 0 &&
+						groupItems.every((i) => selectedItemIds.has(i.item_id));
+					const groupSome =
+						!groupAll && groupItems.some((i) => selectedItemIds.has(i.item_id));
+					return (
+						<React.Fragment key={group}>
+							<div
+								onClick={() => toggleGroup(group)}
+								className="flex items-center gap-[9px] px-[18px] py-2.5 bg-surface-2 border-t border-b border-line-3 cursor-pointer select-none hover:bg-[#eef1f4]">
+								{/* Sits at the same offset as the row checkboxes below it. */}
+								<Checkbox
+									checked={groupAll}
+									indeterminate={groupSome}
+									onChange={() => toggleGroupSelection(groupItems)}
+									label={`Select all items in ${group}`}
 								/>
-							</th>
-							<th className="p-2 text-left font-medium text-gray-500 w-48">
-								Item name
-							</th>
-							<th className="p-2 text-left font-medium text-gray-500 w-28">
-								SKU
-							</th>
-							<th className="p-2 text-right font-medium text-gray-500 w-24">
-								Rate
-							</th>
-							<th className="p-2 text-left font-medium text-gray-500 w-16">
-								Unit
-							</th>
-							<th className="p-2 text-left font-medium text-gray-500 w-24">
-								HSN / SAC
-							</th>
-							<th className="p-2 text-right font-medium text-gray-500 w-24">
-								Reorder qty
-							</th>
-							<th className="p-2 text-right font-medium text-gray-500 w-24">
-								Max cap.
-							</th>
-							<th className="p-2 text-right font-medium text-gray-500 w-24">
-								On hand
-							</th>
-						</tr>
-					</thead>
+								<svg
+									width="12"
+									height="12"
+									viewBox="0 0 12 12"
+									fill="none"
+									className="flex-shrink-0 transition-transform duration-150"
+									style={{
+										transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+									}}>
+									<path
+										d="M2 4l4 4 4-4"
+										stroke="#8b919a"
+										strokeWidth="1.6"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									/>
+								</svg>
+								<span className="text-[12.5px] font-bold text-body-2">
+									{group}
+								</span>
+								<span className="text-[12px] text-muted-2">
+									{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}
+								</span>
+								<div className="flex-1" />
+								<span className="text-[11px] font-bold text-warn bg-warn-bg border border-warn-border rounded-[20px] px-[9px] py-px">
+									{groupItems.length} low
+								</span>
+							</div>
 
-					<tbody>
-						{Object.entries(groupedItems).map(([group, groupItems]) => {
-							const isCollapsed = !expandedGroups.has(group);
-							return (
-								<React.Fragment key={group}>
-									<tr
-										className="bg-gray-50 border-t border-b border-gray-100 cursor-pointer select-none hover:bg-gray-100 transition-colors"
-										onClick={() => toggleGroup(group)}>
-										<td colSpan={9} className="px-3 py-1.5">
-											<div className="flex items-center gap-1.5">
-												<svg
-													className="w-3 h-3 text-gray-400 flex-shrink-0 transition-transform duration-150"
-													style={{
-														transform: isCollapsed
-															? 'rotate(-90deg)'
-															: 'rotate(0deg)',
-													}}
-													viewBox="0 0 12 12"
-													fill="none">
-													<path
-														d="M2 4l4 4 4-4"
-														stroke="currentColor"
-														strokeWidth="1.5"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-													/>
-												</svg>
-												<span className="text-xs font-medium text-gray-500 tracking-wide">
-													{group}
-												</span>
-												<span className="text-xs font-normal text-gray-400 ml-0.5">
-													{groupItems.length} item
-													{groupItems.length !== 1 ? 's' : ''}
-												</span>
-											</div>
-										</td>
-									</tr>
-
-									{!isCollapsed &&
-										groupItems.map((item) => (
-											<ItemRow
-												key={item.item_id}
-												item={{ ...item, selected: selectedItemIds.has(item.item_id) }}
-												toggleSelect={toggleSelect}
-											/>
-										))}
-								</React.Fragment>
-							);
-						})}
-
-						{loading && items.length === 0 && (
-							<>
-								{[80, 65, 72, 55, 88].map((w, i) => (
-									<tr key={i} className="border-b border-gray-50">
-										<td colSpan={9} className="px-3 py-2.5">
-											<div
-												className="h-3 rounded bg-gray-100 animate-pulse"
-												style={{ width: `${w}%` }}
-											/>
-										</td>
-									</tr>
+							{expanded &&
+								groupItems.map((item) => (
+									<ItemRow
+										key={item.item_id}
+										item={item}
+										selected={selectedItemIds.has(item.item_id)}
+										toggleSelect={toggleSelect}
+									/>
 								))}
-							</>
-						)}
+						</React.Fragment>
+					);
+				})}
 
-						{loading && items.length > 0 && (
-							<tr className="border-t border-dashed border-gray-100">
-								<td
-									colSpan={9}
-									className="px-3 py-2 text-center text-xs text-gray-400">
-									<span className="inline-flex items-center gap-1.5">
-										<span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-										Fetching more items…
-									</span>
-								</td>
-							</tr>
-						)}
+				{loading && items.length === 0 && (
+					<div className="px-[18px] py-3">
+						{[80, 65, 72, 55, 88].map((w, i) => (
+							<div
+								key={i}
+								className="h-3 rounded bg-line-4 animate-pulse my-3"
+								style={{ width: `${w}%` }}
+							/>
+						))}
+					</div>
+				)}
 
-						{!loading && filteredItems.length === 0 && (
-							<tr>
-								<td
-									colSpan={9}
-									className="py-10 text-center text-xs text-gray-400">
-									No items match your filters
-								</td>
-							</tr>
-						)}
-					</tbody>
-				</table>
+				{loading && items.length > 0 && (
+					<div className="px-[18px] py-2.5 text-center text-[12.5px] text-muted-2 border-t border-dashed border-line-3">
+						<span className="inline-flex items-center gap-1.5">
+							<span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+							Fetching more items…
+						</span>
+					</div>
+				)}
+
+				{!loading && filteredItems.length === 0 && (
+					<div className="p-10 text-center text-muted-2 text-[13px]">
+						No items match your search.
+					</div>
+				)}
 			</div>
-
-			{/* Step 1: PO options modal (simple vs bundle) */}
-			{showCreatePOModal && (
-				<CreatePOModal
-					selectedCount={selectedItems.length}
-					selectedItems={selectedItems}
-					onClose={() => !creatingPO && setShowCreatePOModal(false)}
-					onConfirm={handleCreatePOConfirm}
-					creating={creatingPO}
-				/>
-			)}
-
-			{/* Step 2: Vendor selection modal (when multiple vendors) */}
-			{showVendorModal && (
-				<VendorSelectModal
-					selectedItems={selectedItems}
-					onClose={() => !creatingPO && setShowVendorModal(false)}
-					onConfirm={(vendorId) => doCreatePO(
-				vendorId,
-				selectedItems,
-				pendingPOOptsRef.current.bundleSize,
-				pendingPOOptsRef.current.populateRate,
-				pendingPOOptsRef.current.discount,
-				pendingPOOptsRef.current.discountType,
-				pendingPOOptsRef.current.roundOff,
-			)}
-					creating={creatingPO}
-				/>
-			)}
 		</div>
 	);
 }
 
-function MetricCard({ label, value, color }) {
-	const valColor =
-		color === 'red'
-			? 'text-red-500'
-			: color === 'green'
-				? 'text-green-700'
-				: 'text-gray-900';
+function MetricCard({ label, value, accent }) {
 	return (
-		<div className="bg-gray-50 rounded-lg px-3 py-2.5">
-			<p className="text-xs text-gray-500 mb-1">{label}</p>
-			<p className={`text-xl font-medium tabular-nums ${valColor}`}>
+		<div className="flex-1 bg-surface-3 border border-line rounded-[10px] px-5 py-[18px] text-center">
+			<div className="text-[13px] text-muted mb-1.5">{label}</div>
+			<div
+				className={`num text-[26px] font-black ${accent ? 'text-ok' : 'text-heading'}`}>
 				{value ?? '—'}
-			</p>
+			</div>
 		</div>
-	);
-}
-
-function ChevronIcon() {
-	return (
-		<svg
-			className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-			viewBox="0 0 12 12"
-			fill="none">
-			<path
-				d="M2 4l4 4 4-4"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-		</svg>
 	);
 }

@@ -2,8 +2,8 @@
 	"name": "low-stock-table",
 	"version": "0.1.0",
 	"private": true,
-	"homepage": "https://ankitnarsingani.github.io/LowStockItems/",
 	"dependencies": {
+		"@netlify/blobs": "^11.0.3",
 		"@testing-library/dom": "^10.4.0",
 		"@testing-library/jest-dom": "^6.6.3",
 		"@testing-library/react": "^16.3.0",
@@ -19,9 +19,7 @@
 		"start": "react-scripts start",
 		"build": "react-scripts build",
 		"test": "react-scripts test",
-		"eject": "react-scripts eject",
-		"predeploy": "npm run build",
-		"deploy": "gh-pages -d build"
+		"eject": "react-scripts eject"
 	},
 	"eslintConfig": {
 		"extends": [
