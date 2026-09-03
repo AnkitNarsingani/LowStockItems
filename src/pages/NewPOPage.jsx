@@ -466,6 +466,7 @@ export default function NewPOPage() {
 						itemsLoading={itemsLoading}
 						itemsError={itemsError}
 						showRate={!populateRate}
+						vendorId={vendorId}
 						onChangeLine={changeLine}
 						onRemoveLine={removeLine}
 						onPickItem={pickItem}

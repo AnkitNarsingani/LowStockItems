@@ -316,12 +316,15 @@ async function getBillRateForItem(vendorName, itemId) {
 	try {
 		const params = new URLSearchParams({
 			organization_id: ORG_ID,
-			vendor_name: vendorName,
 			item_id: itemId,
 			sort_column: 'date',
 			sort_order: 'D',
 			per_page: '1',
 		});
+		// The PO path always names a vendor, since a PO's rate should be what
+		// that vendor last charged. Omitting it widens the search to the most
+		// recent bill from anyone, which is what the item panel wants.
+		if (vendorName) params.set('vendor_name', vendorName);
 
 		const listRes = await fetchWithRetry(
 			`${BASE_PROXY}/bills?${params.toString()}`,
@@ -352,6 +355,37 @@ async function getBillRateForItem(vendorName, itemId) {
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * What this item last cost — the same figure "Populate rate from last bill"
+ * writes onto a PO line, read through the same lookup so the two cannot drift.
+ *
+ * Note this is deliberately not the item's own `purchase_rate`: that is the
+ * standing cost on the item record, which in most catalogues is just the sales
+ * rate copied across and so tells you nothing about the last actual purchase.
+ *
+ * With a vendor, it is that vendor's most recent bill for the item — matching
+ * what the PO would populate. Falls back to the latest bill from any vendor,
+ * so an item never bought from this vendor still shows a price.
+ */
+export async function getLastPurchaseRate(itemId, { vendorId = null } = {}) {
+	let vendorName = null;
+	if (vendorId) {
+		try {
+			vendorName = (await getContactDetails(vendorId))?.contact_name || null;
+		} catch {
+			// Fall through to the any-vendor lookup.
+		}
+	}
+
+	if (vendorName) {
+		const mine = await getBillRateForItem(vendorName, itemId);
+		if (mine != null) return { rate: mine, vendorName };
+	}
+
+	const any = await getBillRateForItem(null, itemId);
+	return any == null ? null : { rate: any, vendorName: null };
 }
 
 // ─── CONTACT DETAILS ─────────────────────────────────────────────────────────

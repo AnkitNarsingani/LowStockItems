@@ -19,6 +19,7 @@ export default function POItemTable({
 	itemsLoading,
 	itemsError,
 	showRate,
+	vendorId,
 	onChangeLine,
 	onRemoveLine,
 	onPickItem,
@@ -115,6 +116,7 @@ export default function POItemTable({
 				<ItemDetailsPanel
 					itemId={detailsFor.item_id}
 					itemName={detailsFor.name}
+					vendorId={vendorId}
 					onClose={() => setDetailsFor(null)}
 				/>
 			)}

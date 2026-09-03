@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
 	getItemById,
+	getLastPurchaseRate,
 	getItemTransactions,
 	getTransactionLine,
 	customFieldByLabel,
@@ -23,11 +24,23 @@ const money = (v) =>
 		maximumFractionDigits: 2,
 	});
 
-const dec2 = (v) =>
-	v == null || v === '' ? '—' : Number(v).toLocaleString('en-IN', {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	});
+// Custom fields can come back formatted ("1,200.00"), which Number() reads as
+// NaN — so strip the grouping separators before converting.
+const toNum = (v) => {
+	if (v == null || v === '') return null;
+	const n = Number(String(v).replace(/,/g, '').trim());
+	return Number.isFinite(n) ? n : null;
+};
+
+const dec2 = (v) => {
+	const n = toNum(v);
+	return n == null
+		? '—'
+		: n.toLocaleString('en-IN', {
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2,
+			});
+};
 
 const fmtDate = (d) => {
 	if (!d) return '';
@@ -57,12 +70,15 @@ function statusTone(status) {
  * Docked on the right: the app's own navigation occupies the left edge, and
  * this mirrors where Zoho puts the same panel.
  */
-export default function ItemDetailsPanel({ itemId, itemName, onClose }) {
+export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }) {
 	const [tab, setTab] = useState('details');
 
 	const [item, setItem] = useState(null);
 	const [loadingItem, setLoadingItem] = useState(true);
 	const [itemError, setItemError] = useState(null);
+
+	const [lastPurchase, setLastPurchase] = useState(null);
+	const [loadingPurchase, setLoadingPurchase] = useState(true);
 
 	const [type, setType] = useState('purchaseorders');
 	const [status, setStatus] = useState('');
@@ -119,6 +135,22 @@ export default function ItemDetailsPanel({ itemId, itemName, onClose }) {
 		};
 	}, [itemId]);
 
+	// ── Last purchase price ────────────────────────────────────────────────
+	// Read from bills rather than the item record, so it is the same number the
+	// PO's "Populate rate from last bill" would write.
+	useEffect(() => {
+		let cancelled = false;
+		setLoadingPurchase(true);
+		setLastPurchase(null);
+		getLastPurchaseRate(itemId, { vendorId })
+			.then((r) => !cancelled && setLastPurchase(r))
+			.catch(() => {})
+			.finally(() => !cancelled && setLoadingPurchase(false));
+		return () => {
+			cancelled = true;
+		};
+	}, [itemId, vendorId]);
+
 	// ── Transactions ───────────────────────────────────────────────────────
 	const loadTx = useCallback(async () => {
 		setLoadingTx(true);
@@ -162,8 +194,13 @@ export default function ItemDetailsPanel({ itemId, itemName, onClose }) {
 
 	const cfg = TRANSACTION_TYPES[type];
 	const pcsInBox = item ? customFieldByLabel(item, /pcs|pieces/i) : null;
-	const lastPurchase =
-		item?.last_purchase_rate ?? item?.purchase_rate ?? null;
+	// The item *detail* endpoint returns custom fields in `custom_fields[]`,
+	// where the list endpoint flattens them to cf_* keys — so reading the flat
+	// key alone left this blank here while the low-stock table showed a value.
+	// Match on the label, which holds whatever the field is called in Zoho.
+	const maxCapacity = item
+		? (customFieldByLabel(item, /max\w*\s*cap/i) ?? item.cf_maximum_capacity)
+		: null;
 
 	const first = tx && tx.rows.length ? (page - 1) * PER_PAGE + 1 : 0;
 	const last = tx ? (page - 1) * PER_PAGE + tx.rows.length : 0;
@@ -236,10 +273,7 @@ export default function ItemDetailsPanel({ itemId, itemName, onClose }) {
 										strong
 									/>
 									<Row label="Reorder point" value={dec2(item?.reorder_level)} />
-									<Row
-										label="Maximum Capacity"
-										value={dec2(item?.cf_maximum_capacity)}
-									/>
+									<Row label="Maximum Capacity" value={dec2(maxCapacity)} />
 									<Row
 										label="Pcs in Box"
 										value={pcsInBox == null ? '—' : String(pcsInBox)}
@@ -247,7 +281,13 @@ export default function ItemDetailsPanel({ itemId, itemName, onClose }) {
 									<Row label="Sales Price" value={money(item?.rate)} />
 									<Row
 										label="Last Purchase Price"
-										value={lastPurchase == null ? '—' : money(lastPurchase)}
+										value={
+											loadingPurchase
+												? '…'
+												: lastPurchase == null
+													? '—'
+													: money(lastPurchase.rate)
+										}
 									/>
 								</>
 							)}
