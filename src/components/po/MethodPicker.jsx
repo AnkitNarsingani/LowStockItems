@@ -84,12 +84,14 @@ const specFor = (id) => METHOD_LIST.find((m) => m.id === id);
 const nf = (v) => (v == null ? '—' : Number(v).toLocaleString('en-IN'));
 
 export default function MethodPicker({ lines, onApply }) {
-	// Nothing is persisted — the picker opens fresh with no method preselected.
-	const [method, setMethod] = useState(null);
-	// Comparing runs several methods over the same items and the same inputs, so
+	// Nothing is persisted — the picker opens fresh with nothing ticked.
+	//
+	// One list, not a mode: ticking a second method is the whole of "compare".
+	// A separate toggle would have hidden the checkboxes behind a control you
+	// had to find first, and comparing is just what more than one selection
+	// means. The methods then run over the same items and the same inputs, so
 	// the only thing differing between the columns is the method itself.
-	const [compare, setCompare] = useState(false);
-	const [compareIds, setCompareIds] = useState([]);
+	const [selectedIds, setSelectedIds] = useState([]);
 
 	const [bundleTotal, setBundleTotal] = useState('');
 	const [exponent, setExponent] = useState(String(DEFAULT_DAMPING_EXPONENT));
@@ -112,10 +114,7 @@ export default function MethodPicker({ lines, onApply }) {
 		[lines],
 	);
 
-	const selectedIds = useMemo(
-		() => (compare ? compareIds : method ? [method] : []),
-		[compare, compareIds, method],
-	);
+	const compare = selectedIds.length > 1;
 	const specs = useMemo(
 		() => selectedIds.map(specFor).filter(Boolean),
 		[selectedIds],
@@ -136,34 +135,15 @@ export default function MethodPicker({ lines, onApply }) {
 		setError(null);
 	}, []);
 
-	const choose = (id) => {
-		setMethod(id);
-		invalidate();
-	};
-
-	const toggleCompared = (id) => {
-		setCompareIds((prev) =>
+	const toggleSelected = (id) => {
+		setSelectedIds((prev) =>
 			prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
 		);
 		invalidate();
 	};
 
-	const toggleCompare = () => {
-		if (compare) {
-			// Leaving compare keeps the first ticked method, so the page does not
-			// silently lose the selection.
-			setMethod((m) => compareIds[0] ?? m);
-			setCompare(false);
-		} else {
-			setCompareIds(method ? [method] : []);
-			setCompare(true);
-		}
-		invalidate();
-	};
-
-	const minMethods = compare ? 2 : 1;
 	const isValid = (() => {
-		if (selectedIds.length < minMethods) return false;
+		if (selectedIds.length === 0) return false;
 		if (needs.has('B') && !(Number(bundleTotal) > 0)) return false;
 		if (needs.has('D') && !(Number(coverDays) > 0)) return false;
 		if (needs.has('e')) {
@@ -334,39 +314,18 @@ export default function MethodPicker({ lines, onApply }) {
 	return (
 		<>
 			<Field label="Quantity mode" align="start">
-				<div className="flex items-center justify-between gap-3 mb-2">
-					<span className="text-[11.5px] text-muted">
-						{compare
-							? 'Pick two or more to run side by side.'
-							: 'One method fills the quantity column.'}
-					</span>
-					<label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-						<Toggle on={compare} onChange={toggleCompare} />
-						<span className="text-[12px] font-semibold text-body-3">
-							Compare methods
-						</span>
-					</label>
+				<ModeSelect
+					multiple
+					options={METHOD_LIST}
+					values={selectedIds}
+					onChange={toggleSelected}
+					placeholder="Select a quantity mode"
+				/>
+				<div className="text-[11px] text-muted mt-1.5">
+					{compare
+						? `Comparing ${selectedIds.length} methods — each gets a column.`
+						: 'Tick more than one to compare them side by side.'}
 				</div>
-
-				{/* The same dropdown either way — it just ticks rather than picks
-				    when comparing, so the control does not move or change shape
-				    underneath you when the toggle is flipped. */}
-				{compare ? (
-					<ModeSelect
-						multiple
-						options={METHOD_LIST}
-						values={compareIds}
-						onChange={toggleCompared}
-						placeholder="Select methods to compare"
-					/>
-				) : (
-					<ModeSelect
-						options={METHOD_LIST}
-						value={method}
-						onChange={choose}
-						placeholder="Select a quantity mode"
-					/>
-				)}
 
 				{/* A method's own inputs live right under the selection, so the knobs
 				    are next to the choice that introduced them. */}
@@ -469,16 +428,12 @@ export default function MethodPicker({ lines, onApply }) {
 						</div>
 						<div className="text-[11.5px] text-muted mt-0.5">
 							{selectedIds.length === 0
-								? compare
-									? 'Tick the methods you want to compare.'
-									: 'Pick a quantity mode above to work out order quantities.'
-								: selectedIds.length < minMethods
-									? 'Tick at least one more method to compare.'
-									: !isValid
-										? 'Fill in the inputs above, then preview.'
-										: compare
-											? 'Read-only — apply whichever column you prefer.'
-											: 'Read-only — nothing reaches the table until you apply it.'}
+								? 'Pick a quantity mode above to work out order quantities.'
+								: !isValid
+									? 'Fill in the inputs above, then preview.'
+									: compare
+										? 'Read-only — apply whichever column you prefer.'
+										: 'Read-only — nothing reaches the table until you apply it.'}
 						</div>
 					</div>
 
