@@ -1,24 +1,18 @@
 // Shared helpers for the lost-sale endpoints.
 //
-// NOTE: getStore is deliberately NOT called here at module scope. Doing that
-// throws MissingBlobsEnvironmentError in production — siteID and token are only
-// injected once a handler is running. Every handler calls storeFor() itself.
+// These are Netlify Functions v2 (ESM, `export default`, Request/Response).
+// The format matters: Netlify only injects NETLIFY_BLOBS_CONTEXT — the
+// automatic Blobs configuration — for v2 functions. Under the legacy
+// `exports.handler` format getStore() throws MissingBlobsEnvironmentError,
+// which is exactly what happened on the first deploy of this module.
+//
+// getStore is still only ever called inside a handler, never at module scope.
+
+import { getStore } from '@netlify/blobs';
 
 const STORE_NAME = 'lost-sales';
 
-function storeFor() {
-	// Required inside the handler, not at module load. See note above.
-	const { getStore } = require('@netlify/blobs');
-
-	// Netlify injects NETLIFY_BLOBS_CONTEXT automatically, but only for deploys
-	// its own build system produced. A prebuilt CLI upload does not get it, so
-	// fall back to explicit credentials when they are configured.
-	if (!process.env.NETLIFY_BLOBS_CONTEXT) {
-		const siteID = process.env.BLOBS_SITE_ID || process.env.SITE_ID;
-		const token = process.env.NETLIFY_BLOBS_TOKEN;
-		if (siteID && token) return getStore({ name: STORE_NAME, siteID, token });
-	}
-
+export function storeFor() {
 	return getStore(STORE_NAME);
 }
 
@@ -28,21 +22,21 @@ const CORS = {
 	'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
 };
 
-function json(statusCode, body) {
-	return {
-		statusCode,
-		headers: { ...CORS, 'Content-Type': 'application/json' },
-		body: JSON.stringify(body),
-	};
+export function json(status, body) {
+	return Response.json(body, { status, headers: CORS });
+}
+
+export function preflight() {
+	return new Response(null, { status: 204, headers: CORS });
 }
 
 // Key scheme: lost-sale:{YYYY-MM}:{uuid} so a month can be listed by prefix
 // without scanning the whole store.
-function keyFor(date, id) {
+export function keyFor(date, id) {
 	return `lost-sale:${String(date).slice(0, 7)}:${id}`;
 }
 
-function isValidDate(s) {
+export function isValidDate(s) {
 	if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
 	const d = new Date(`${s}T00:00:00Z`);
 	if (Number.isNaN(d.getTime())) return false;
@@ -55,7 +49,7 @@ function isValidDate(s) {
  * actually protects the store.
  * Returns an array of human-readable problems; empty means the payload is good.
  */
-function validate(payload) {
+export function validate(payload) {
 	const problems = [];
 
 	const qty = Number(payload?.qty_wanted);
@@ -79,5 +73,3 @@ function validate(payload) {
 
 	return problems;
 }
-
-module.exports = { STORE_NAME, storeFor, CORS, json, keyFor, isValidDate, validate };

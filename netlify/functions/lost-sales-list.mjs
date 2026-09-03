@@ -1,4 +1,4 @@
-const { storeFor, CORS, json, isValidDate } = require('./_lost-sales-shared');
+import { storeFor, json, preflight, isValidDate } from './_lost-sales-shared.mjs';
 
 // Months between two YYYY-MM-DD bounds, inclusive, as YYYY-MM prefixes. Lets a
 // bounded query list only the months it needs instead of the whole store.
@@ -19,16 +19,16 @@ function monthsBetween(from, to) {
 	return out;
 }
 
-exports.handler = async function (event) {
-	if (event.httpMethod === 'OPTIONS') {
-		return { statusCode: 204, headers: CORS, body: '' };
-	}
-	if (event.httpMethod !== 'GET') {
+export default async (req) => {
+	if (req.method === 'OPTIONS') return preflight();
+	if (req.method !== 'GET') {
 		return json(405, { error: 'Method not allowed. Use GET.' });
 	}
 
-	const q = event.queryStringParameters || {};
-	const { from, to, item_id: itemId } = q;
+	const params = new URL(req.url).searchParams;
+	const from = params.get('from');
+	const to = params.get('to');
+	const itemId = params.get('item_id');
 
 	if (from && !isValidDate(from)) {
 		return json(400, { error: 'from must be a date in YYYY-MM-DD form.' });
@@ -71,8 +71,6 @@ exports.handler = async function (event) {
 
 		return json(200, { lost_sales: records, count: records.length });
 	} catch (e) {
-		return json(502, {
-			error: `Could not read lost sales: ${e.message || e}`,
-		});
+		return json(502, { error: `Could not read lost sales: ${e.message || e}` });
 	}
 };

@@ -1,17 +1,15 @@
-const { randomUUID } = require('crypto');
-const { storeFor, CORS, json, keyFor, validate } = require('./_lost-sales-shared');
+import { randomUUID } from 'node:crypto';
+import { storeFor, json, preflight, keyFor, validate } from './_lost-sales-shared.mjs';
 
-exports.handler = async function (event) {
-	if (event.httpMethod === 'OPTIONS') {
-		return { statusCode: 204, headers: CORS, body: '' };
-	}
-	if (event.httpMethod !== 'POST') {
+export default async (req) => {
+	if (req.method === 'OPTIONS') return preflight();
+	if (req.method !== 'POST') {
 		return json(405, { error: 'Method not allowed. Use POST.' });
 	}
 
 	let payload;
 	try {
-		payload = JSON.parse(event.body || '{}');
+		payload = await req.json();
 	} catch {
 		return json(400, { error: 'Body must be valid JSON.' });
 	}
@@ -36,13 +34,11 @@ exports.handler = async function (event) {
 	};
 
 	try {
-		// getStore must be called in here — see _lost-sales-shared.js.
+		// getStore is called here, inside the handler — never at module scope.
 		const store = storeFor();
 		await store.setJSON(keyFor(record.date, id), record);
 	} catch (e) {
-		return json(502, {
-			error: `Could not save the lost sale: ${e.message || e}`,
-		});
+		return json(502, { error: `Could not save the lost sale: ${e.message || e}` });
 	}
 
 	return json(201, { lost_sale: record });
