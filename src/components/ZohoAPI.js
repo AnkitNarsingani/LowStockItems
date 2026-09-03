@@ -544,6 +544,192 @@ export async function getAllItems(onProgress) {
 	return _allItemsInFlight;
 }
 
+// ─── ITEM TRANSACTIONS ───────────────────────────────────────────────────────
+// Every document type Zoho can show against an item, with the status filters
+// each one actually supports. The list endpoints accept ?item_id=, which is the
+// same filter getBillRateForItem already relies on.
+
+export const TRANSACTION_TYPES = {
+	invoices: {
+		label: 'Invoices',
+		path: 'invoices',
+		listKey: 'invoices',
+		idKey: 'invoice_id',
+		numberKey: 'invoice_number',
+		contactKey: 'customer_name',
+		detailKey: 'invoice',
+		qtyLabel: 'Quantity Sold',
+		statuses: [
+			['', 'All'],
+			['Status.Draft', 'Draft'],
+			['Status.Viewed', 'Client Viewed'],
+			['Status.PartiallyPaid', 'Partially Paid'],
+			['Status.Unpaid', 'Unpaid'],
+			['Status.Overdue', 'Overdue'],
+			['Status.Paid', 'Paid'],
+			['Status.Void', 'Void'],
+		],
+	},
+	creditnotes: {
+		label: 'Credit Notes',
+		path: 'creditnotes',
+		listKey: 'creditnotes',
+		idKey: 'creditnote_id',
+		numberKey: 'creditnote_number',
+		contactKey: 'customer_name',
+		detailKey: 'creditnote',
+		qtyLabel: 'Quantity',
+		statuses: [
+			['', 'All'],
+			['Status.Open', 'Open'],
+			['Status.Closed', 'Closed'],
+			['Status.Void', 'Void'],
+		],
+	},
+	purchaseorders: {
+		label: 'Purchase Orders',
+		path: 'purchaseorders',
+		listKey: 'purchaseorders',
+		idKey: 'purchaseorder_id',
+		numberKey: 'purchaseorder_number',
+		contactKey: 'vendor_name',
+		detailKey: 'purchaseorder',
+		qtyLabel: 'Quantity Purchased',
+		statuses: [
+			['', 'All'],
+			['Status.Draft', 'Draft'],
+			['Status.Billed', 'Billed'],
+			['Status.PartiallyBilled', 'Partially Billed'],
+			['Status.Cancelled', 'Cancelled'],
+			['Status.Issued', 'Issued'],
+		],
+	},
+	bills: {
+		label: 'Bills',
+		path: 'bills',
+		listKey: 'bills',
+		idKey: 'bill_id',
+		numberKey: 'bill_number',
+		contactKey: 'vendor_name',
+		detailKey: 'bill',
+		qtyLabel: 'Quantity Purchased',
+		statuses: [
+			['', 'All'],
+			['Status.Open', 'Open'],
+			['Status.Overdue', 'Overdue'],
+			['Status.Unpaid', 'Unpaid'],
+			['Status.PartiallyPaid', 'Partially Paid'],
+			['Status.Paid', 'Paid'],
+			['Status.Void', 'Void'],
+		],
+	},
+	vendorcredits: {
+		label: 'Vendor Credits',
+		path: 'vendorcredits',
+		listKey: 'vendor_credits',
+		idKey: 'vendor_credit_id',
+		numberKey: 'vendor_credit_number',
+		contactKey: 'vendor_name',
+		detailKey: 'vendor_credit',
+		qtyLabel: 'Quantity',
+		statuses: [
+			['', 'All'],
+			['Status.Open', 'Open'],
+			['Status.Closed', 'Closed'],
+			['Status.Void', 'Void'],
+		],
+	},
+};
+
+/**
+ * One page of documents of `type` that mention `itemId`.
+ *
+ * Newest first, and paged the way the panel shows them. The per-item price and
+ * quantity are NOT here: the list endpoints return document-level data, so
+ * those come from getTransactionLine once the rows are on screen.
+ */
+export async function getItemTransactions(
+	type,
+	itemId,
+	{ status = '', page = 1, perPage = 5 } = {},
+) {
+	const cfg = TRANSACTION_TYPES[type];
+	if (!cfg) throw new Error(`Unknown transaction type "${type}".`);
+
+	const params = new URLSearchParams({
+		organization_id: ORG_ID,
+		item_id: itemId,
+		sort_column: 'date',
+		sort_order: 'D',
+		page: String(page),
+		per_page: String(perPage),
+	});
+	if (status) params.set('filter_by', status);
+
+	const res = await fetchWithRetry(
+		`${BASE_PROXY}/${cfg.path}?${params.toString()}`,
+		{ headers: authHeaders() },
+	);
+	const data = await res.json();
+
+	if (data.code !== undefined && data.code !== 0) {
+		throw new Error(data.message || `Could not load ${cfg.label.toLowerCase()}.`);
+	}
+
+	const rows = (data[cfg.listKey] || []).map((d) => ({
+		id: d[cfg.idKey],
+		number: d[cfg.numberKey] || '—',
+		contact: d[cfg.contactKey] || '—',
+		date: d.date || d.created_time || '',
+		status: d.status || '',
+	}));
+
+	return {
+		rows,
+		page,
+		hasMore: !!data.page_context?.has_more_page,
+	};
+}
+
+/** The line for one item within one document — its rate and quantity. */
+export async function getTransactionLine(type, docId, itemId) {
+	const cfg = TRANSACTION_TYPES[type];
+	if (!cfg) return null;
+	try {
+		const res = await fetchWithRetry(
+			`${BASE_PROXY}/${cfg.path}/${docId}?organization_id=${ORG_ID}`,
+			{ headers: authHeaders() },
+		);
+		const data = await res.json();
+		if (data.code !== 0) return null;
+
+		const lines = data[cfg.detailKey]?.line_items || [];
+		const line = lines.find((l) => l.item_id === itemId);
+		if (!line) return null;
+		return { rate: Number(line.rate) || 0, quantity: Number(line.quantity) || 0 };
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Read a custom field by the label shown in Zoho rather than its api_name,
+ * which differs per organisation. Falls back to the flattened cf_* key.
+ */
+export function customFieldByLabel(item, pattern) {
+	const found = (item?.custom_fields || []).find((f) =>
+		pattern.test(String(f.label || '')),
+	);
+	if (found && found.value !== '' && found.value != null) return found.value;
+
+	for (const [k, v] of Object.entries(item || {})) {
+		if (k.startsWith('cf_') && pattern.test(k.replace(/^cf_/, '').replace(/_/g, ' '))) {
+			if (v !== '' && v != null) return v;
+		}
+	}
+	return null;
+}
+
 // ─── CREATE PO ────────────────────────────────────────────────────────────────
 //
 // Two entry points share every internal below, so a PO is identical in Zoho

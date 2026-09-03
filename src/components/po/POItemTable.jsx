@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import ItemPicker from './ItemPicker';
+import ItemDetailsPanel from './ItemDetailsPanel';
 
 const money = (v) =>
 	'₹' +
@@ -35,6 +36,9 @@ export default function POItemTable({
 		? 'minmax(0,2.1fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,0.85fr) minmax(0,1fr)'
 		: 'minmax(0,2.1fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.85fr)';
 
+	// Opened from a row's overflow menu; rendered here because it covers the page.
+	const [detailsFor, setDetailsFor] = useState(null);
+
 	const grandTotal = useMemo(
 		() =>
 			lines.reduce(
@@ -51,7 +55,7 @@ export default function POItemTable({
 	);
 
 	return (
-		<div className="bg-surface border border-line rounded overflow-visible mr-11">
+		<div className="bg-surface border border-line rounded overflow-visible mr-[86px]">
 			<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
 				<div className="font-bold text-[14px] text-body">Item Table</div>
 				<div className="num text-[12.5px] text-body-3">
@@ -97,8 +101,17 @@ export default function POItemTable({
 					onChangeLine={onChangeLine}
 					onRemoveLine={onRemoveLine}
 					onPickItem={onPickItem}
+					onViewDetails={setDetailsFor}
 				/>
 			))}
+
+			{detailsFor && (
+				<ItemDetailsPanel
+					itemId={detailsFor.item_id}
+					itemName={detailsFor.name}
+					onClose={() => setDetailsFor(null)}
+				/>
+			)}
 
 			<div className="flex gap-3 px-[18px] py-4 flex-wrap">
 				<button
@@ -122,6 +135,7 @@ function POLineRow({
 	onChangeLine,
 	onRemoveLine,
 	onPickItem,
+	onViewDetails,
 }) {
 	const qty = Number(line.quantity) || 0;
 	const rate = Number(line.poRate) || 0;
@@ -134,6 +148,26 @@ function POLineRow({
 
 	const overMax =
 		!line.isFreeText && !isNaN(maxCap) && maxCap > 0 && onHand + qty > maxCap;
+
+	// Overflow menu, anchored to this row.
+	const [menuOpen, setMenuOpen] = useState(false);
+	const menuRef = useRef(null);
+
+	useEffect(() => {
+		if (!menuOpen) return undefined;
+		const onDown = (e) => {
+			if (menuRef.current && !menuRef.current.contains(e.target)) {
+				setMenuOpen(false);
+			}
+		};
+		const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
+		document.addEventListener('mousedown', onDown);
+		document.addEventListener('keydown', onKey);
+		return () => {
+			document.removeEventListener('mousedown', onDown);
+			document.removeEventListener('keydown', onKey);
+		};
+	}, [menuOpen]);
 
 	// items-stretch, not items-start: a cell sized to its own content leaves the
 	// vertical border-r short of the row height whenever a sibling cell is taller
@@ -238,6 +272,51 @@ function POLineRow({
 			    data column. Absolute against the row keeps it centred on that row
 			    whatever its height. The trailing blank row has nothing to remove,
 			    and deleting it would only make the table grow a fresh one. */}
+			{/* Overflow — only a real Zoho item has details to show. */}
+			{line.item_id && (
+				<div
+					ref={menuRef}
+					className="absolute right-[-76px] top-1/2 -translate-y-1/2">
+					<button
+						onClick={() => setMenuOpen((v) => !v)}
+						title="More"
+						aria-label={`More actions for ${line.name || 'this line'}`}
+						aria-haspopup="menu"
+						aria-expanded={menuOpen}
+						className={`w-7 h-7 rounded border bg-surface flex items-center justify-center cursor-pointer ${
+							menuOpen
+								? 'border-brand text-link'
+								: 'border-line-2 text-body-3 hover:bg-surface-2'
+						}`}>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+							<circle cx="5" cy="12" r="1.6" />
+							<circle cx="12" cy="12" r="1.6" />
+							<circle cx="19" cy="12" r="1.6" />
+						</svg>
+					</button>
+
+					{menuOpen && (
+						<div
+							role="menu"
+							className="absolute right-0 top-9 z-40 min-w-[190px] bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.18)] overflow-hidden">
+							<button
+								role="menuitem"
+								onClick={() => {
+									setMenuOpen(false);
+									onViewDetails(line);
+								}}
+								className="w-full text-left px-3 py-2.5 text-[13px] text-body bg-surface hover:bg-brand-bg hover:text-link cursor-pointer border-none flex items-center gap-2">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+									<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+									<path d="M8 12h8M8 16h5" />
+								</svg>
+								View Item Details
+							</button>
+						</div>
+					)}
+				</div>
+			)}
+
 			{(line.item_id || line.isFreeText) && (
 				<button
 					onClick={() => onRemoveLine(line.key)}
