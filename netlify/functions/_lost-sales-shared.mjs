@@ -13,7 +13,11 @@ import { getStore } from '@netlify/blobs';
 const STORE_NAME = 'lost-sales';
 
 export function storeFor() {
-	return getStore(STORE_NAME);
+	// Strong consistency: the form saves and then immediately navigates to the
+	// list, and under the default eventual consistency the new record takes a
+	// few seconds to appear — so a save looks like it failed. Slower reads are
+	// the right trade at these volumes.
+	return getStore({ name: STORE_NAME, consistency: 'strong' });
 }
 
 const CORS = {
