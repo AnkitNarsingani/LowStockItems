@@ -10,16 +10,12 @@ const money = (v) =>
 /**
  * The item cell's search-and-pick dropdown, per the design canvas: each result
  * shows name, a grey SKU / purchase-rate line, and a right-aligned Stock on
- * Hand that is green when positive and red at or below zero. "Add New Item" is
- * pinned at the bottom for free-text lines.
+ * Hand that is green when positive and red at or below zero.
+ *
+ * Real Zoho items only — there is no free-text path here, so a line can never
+ * reference something the catalogue does not know about.
  */
-export default function ItemPicker({
-	items,
-	loading,
-	error,
-	onPick,
-	onFreeText,
-}) {
+export default function ItemPicker({ items, loading, error, onPick }) {
 	const [search, setSearch] = useState('');
 	const [open, setOpen] = useState(false);
 	const [pos, setPos] = useState(null);
@@ -72,16 +68,6 @@ export default function ItemPicker({
 		};
 	}, [open]);
 
-	const commitFreeText = () => {
-		const text = search.trim();
-		if (!text) {
-			inputRef.current?.focus();
-			return;
-		}
-		onFreeText(text);
-		setSearch('');
-		setOpen(false);
-	};
 
 	return (
 		<div ref={wrapRef} className="relative">
@@ -95,10 +81,6 @@ export default function ItemPicker({
 				onFocus={() => setOpen(true)}
 				onKeyDown={(e) => {
 					if (e.key === 'Escape') setOpen(false);
-					if (e.key === 'Enter' && results.length === 0) {
-						e.preventDefault();
-						commitFreeText();
-					}
 				}}
 				placeholder={
 					loading && items.length === 0
@@ -171,15 +153,6 @@ export default function ItemPicker({
 						)}
 					</div>
 
-					<div
-						onClick={commitFreeText}
-						className="px-[13px] py-[11px] border-t border-[#eef0f2] flex items-center gap-2 text-link font-bold text-[13px] cursor-pointer bg-surface hover:bg-brand-bg">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f7be0" strokeWidth="2">
-							<circle cx="12" cy="12" r="9" />
-							<path d="M12 8v8M8 12h8" strokeLinecap="round" />
-						</svg>
-						Add New Item{search.trim() ? `: “${search.trim()}”` : ''}
-					</div>
 				</div>
 			)}
 		</div>

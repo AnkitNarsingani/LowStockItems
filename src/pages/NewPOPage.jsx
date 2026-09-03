@@ -264,16 +264,6 @@ export default function NewPOPage() {
 		[enrichLine, updateLines],
 	);
 
-	const addFreeText = useCallback((key, text) => {
-		updateLines((prev) =>
-			prev.map((l) =>
-				l.key === key
-					? { ...l, isFreeText: true, item_id: null, name: text }
-					: l,
-			),
-		);
-	}, [updateLines]);
-
 	const addBulk = useCallback(
 		(picks) => {
 			const added = picks.map(({ item, quantity }) =>
@@ -301,7 +291,6 @@ export default function NewPOPage() {
 			),
 		);
 	}, [updateLines]);
-
 
 	// ─── Summary ──────────────────────────────────────────────────────────────
 	const summary = useMemo(() => {
@@ -475,7 +464,6 @@ export default function NewPOPage() {
 						onChangeLine={changeLine}
 						onRemoveLine={removeLine}
 						onPickItem={pickItem}
-						onAddFreeText={addFreeText}
 						onOpenBulk={() => setShowBulk(true)}
 					/>
 				</div>

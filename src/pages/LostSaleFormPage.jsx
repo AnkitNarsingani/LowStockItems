@@ -133,13 +133,6 @@ export default function LostSaleFormPage() {
 			prev.map((r) => (r.key === key ? { ...rowFromItem(item), key: r.key } : r)),
 		);
 
-	const addFreeTextItem = (key, text) =>
-		updateRows((prev) =>
-			prev.map((r) =>
-				r.key === key ? { ...r, isFreeText: true, item_id: null, name: text } : r,
-			),
-		);
-
 	const setQty = (key, qty) =>
 		updateRows((prev) => prev.map((r) => (r.key === key ? { ...r, qty } : r)));
 
@@ -384,7 +377,6 @@ export default function LostSaleFormPage() {
 											loading={itemsLoading}
 											error={itemsError}
 											onPick={(item) => pickItem(r.key, item)}
-											onFreeText={(text) => addFreeTextItem(r.key, text)}
 										/>
 									)}
 								</div>

@@ -21,7 +21,6 @@ export default function POItemTable({
 	onChangeLine,
 	onRemoveLine,
 	onPickItem,
-	onAddFreeText,
 	onOpenBulk,
 }) {
 	// The design drops RATE and AMOUNT while rates are being sourced from the
@@ -97,7 +96,6 @@ export default function POItemTable({
 					onChangeLine={onChangeLine}
 					onRemoveLine={onRemoveLine}
 					onPickItem={onPickItem}
-					onAddFreeText={onAddFreeText}
 				/>
 			))}
 
@@ -123,7 +121,6 @@ function POLineRow({
 	onChangeLine,
 	onRemoveLine,
 	onPickItem,
-	onAddFreeText,
 }) {
 	const qty = Number(line.quantity) || 0;
 	const rate = Number(line.poRate) || 0;
@@ -177,7 +174,6 @@ function POLineRow({
 						loading={itemsLoading}
 						error={itemsError}
 						onPick={(item) => onPickItem(line.key, item)}
-						onFreeText={(text) => onAddFreeText(line.key, text)}
 					/>
 				)}
 			</div>
