@@ -9,11 +9,8 @@ import {
 	emitStockoutSignals,
 } from '../../lib/allocation';
 import { recordStockoutSignals } from '../../lib/stockoutSignals';
-import {
-	getSalesForPeriod,
-	calculateBundleQuantities,
-	simpleQuantityFor,
-} from '../ZohoAPI';
+import { calculateBundleQuantities, simpleQuantityFor } from '../ZohoAPI';
+import { getSales, peekSales, missingFor } from '../../lib/salesCache';
 import Toggle from './Toggle';
 import ModeSelect from './ModeSelect';
 import Field from '../Field';
@@ -98,11 +95,6 @@ export default function MethodPicker({ lines, onApply }) {
 	const [error, setError] = useState(null);
 	const [notice, setNotice] = useState(null);
 
-	// Sales cache keyed by `${item_id}:${window}` — fetched once, reused across
-	// every method switch. Without this, switching methods would refetch the
-	// whole selection each time and be unusable.
-	const [salesCache, setSalesCache] = useState({});
-
 	const allocatable = useMemo(
 		() => lines.filter((l) => !l.isFreeText && l.item_id),
 		[lines],
@@ -148,29 +140,31 @@ export default function MethodPicker({ lines, onApply }) {
 
 		try {
 			const win = WINDOW_FOR[method];
-			const cache = { ...salesCache };
 
 			if (win) {
-				const missing = allocatable.filter(
-					(l) => cache[`${l.item_id}:${win}`] === undefined,
+				// Only what is genuinely absent is fetched. Anything already read —
+				// by an earlier preview, an earlier visit to this page, or the
+				// reorder run — is reused.
+				const missing = missingFor(
+					allocatable.map((l) => l.item_id),
+					win,
 				);
-				setProgress({ done: 0, total: missing.length });
+				const reused = allocatable.length - missing.length;
+				setProgress({ done: 0, total: missing.length, reused });
 
 				for (let i = 0; i < missing.length; i++) {
-					const l = missing[i];
-					const sold = await getSalesForPeriod(l.item_id, win);
-					cache[`${l.item_id}:${win}`] = sold;
-					setProgress({ done: i + 1, total: missing.length });
+					await getSales(missing[i], win);
+					setProgress({ done: i + 1, total: missing.length, reused });
+					// Same pacing the rest of the app uses against the proxy.
 					if (i < missing.length - 1) {
 						await new Promise((r) => setTimeout(r, 150));
 					}
 				}
 
-				setSalesCache(cache);
 				setProgress(null);
 			}
 
-			const soldFor = (l) => (win ? (cache[`${l.item_id}:${win}`] ?? 0) : 0);
+			const soldFor = (l) => (win ? (peekSales(l.item_id, win) ?? 0) : 0);
 			let qtyByIndex;
 
 			if (method === METHODS.SIMPLE) {
@@ -183,7 +177,7 @@ export default function MethodPicker({ lines, onApply }) {
 					allocatable,
 					Number(bundleTotal),
 					{
-						getSales: async (itemId) => cache[`${itemId}:180`] ?? 0,
+						getSales: async (itemId) => peekSales(itemId, 180) ?? 0,
 						interDelay: 0,
 					},
 				);
@@ -392,7 +386,10 @@ export default function MethodPicker({ lines, onApply }) {
 
 				{progress && (
 					<div className="text-[11px] text-muted mt-2 num">
-						Fetching sales… {progress.done} / {progress.total}
+						{progress.total > 0
+							? `Fetching sales… ${progress.done} / ${progress.total}`
+							: 'Using cached sales'}
+						{progress.reused > 0 ? ` · ${progress.reused} reused` : ''}
 					</div>
 				)}
 				{pendingEnrich > 0 && (

@@ -14,7 +14,8 @@
 // job to resume from.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getAllItems, getSalesForPeriod } from '../components/ZohoAPI';
+import { getAllItems } from '../components/ZohoAPI';
+import { getSales, hasSales } from './salesCache';
 import { listLostSales } from './lostSales';
 import { computeSuggestion, DEFAULT_SETTINGS } from './reorderEngine';
 
@@ -119,7 +120,8 @@ export async function startRun() {
 			if (token !== runToken) return; // superseded by a newer run
 
 			const item = candidates[i];
-			const sold = await getSalesForPeriod(item.item_id, SALES_WINDOW_DAYS);
+			const wasCached = hasSales(item.item_id, SALES_WINDOW_DAYS);
+			const sold = await getSales(item.item_id, SALES_WINDOW_DAYS);
 			const lost = lostByItem.get(item.item_id) || { units: 0, count: 0 };
 
 			const suggestion = computeSuggestion(
@@ -159,7 +161,8 @@ export async function startRun() {
 			}
 
 			set({ progress: { done: i + 1, total: candidates.length } });
-			if (i < candidates.length - 1) {
+			// Pace only real requests; a cache hit costs the proxy nothing.
+			if (!wasCached && i < candidates.length - 1) {
 				await new Promise((r) => setTimeout(r, PACING_MS));
 			}
 		}
