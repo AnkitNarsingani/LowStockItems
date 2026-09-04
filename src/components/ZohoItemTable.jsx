@@ -391,7 +391,7 @@ export default function ZohoItemsTable() {
 			    reachable however far down a long catalogue you are. */}
 			<div className="sticky top-[52px] z-20 -mx-7 px-7 pt-1 pb-3 bg-app">
 				<div className="flex items-center gap-2.5 flex-wrap">
-					<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-all duration-200 ease-smooth focus-within:border-muted-3">
+					<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-colors focus-within:border-muted-3">
 						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
 							<circle cx="11" cy="11" r="7" />
 							<path d="M21 21l-4-4" strokeLinecap="round" />

@@ -45,18 +45,33 @@ input::placeholder {
 	color: #a7adb5;
 }
 
-/* One focus ring for the whole app: a hairline of light grey. Deliberately
-   not brand blue — a text input matches :focus-visible even when focused with
-   the mouse, so a blue ring here put a blue border around every field in use.
-   Dark grey had the same problem in reverse: at 2px it read as a black box
-   around whatever you were typing in.
-
-   1px at a light grey is about as quiet as a focus indicator can be while
-   still being one. A real `outline` rather than a spread box-shadow, so it
-   follows each element's own border-radius and never reads as a halo. */
+/* A hairline focus ring for things you operate — buttons, links, the custom
+   checkbox. A real `outline` rather than a spread box-shadow, so it follows
+   each element's own border-radius and never reads as a halo. */
 :focus-visible {
 	outline: 1px solid #c4c9d0;
 	outline-offset: 1px;
+}
+
+/* Text fields are the exception, and they have to be.
+
+   A text input matches :focus-visible even when it is focused with the mouse,
+   so this rule reached every field the moment you clicked into one. Worse,
+   most of our inputs sit *inside* a bordered wrapper (the search box in a
+   picker, the discount field), so the ring drew a second rectangle within the
+   first — two nested borders around one control.
+
+   A field does not need a ring: it already shows focus by darkening its own
+   border, or its wrapper's via focus-within. This rule comes after the
+   utilities layer so it also beats Tailwind's `outline-none`, which sets a
+   transparent outline rather than removing one. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+	outline: none;
 }
 
 /* Every button and control settles under the pointer the same way. */

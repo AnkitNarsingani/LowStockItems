@@ -492,7 +492,7 @@ export default function LostSaleFormPage() {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));
 										}}
-										className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
+										className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-colors hover:border-muted-4 focus:border-muted-3"
 									/>
 								</div>
 

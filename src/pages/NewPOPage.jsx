@@ -499,7 +499,7 @@ export default function NewPOPage() {
 						<div className="flex justify-between items-center py-2.5 border-t border-line-4 text-[13.5px] gap-2">
 							<span className="text-body-2 flex-shrink-0">Discount</span>
 							<div className="flex items-center gap-2.5">
-								<div className="flex border border-line-2 rounded overflow-hidden h-8 bg-surface transition-shadow focus-within:border-muted-3">
+								<div className="flex border border-line-2 rounded overflow-hidden h-8 bg-surface transition-colors focus-within:border-muted-3">
 									<input
 										type="number"
 										min="0"
@@ -544,7 +544,7 @@ export default function NewPOPage() {
 										onChange={(e) => setAdjustment(e.target.value)}
 										placeholder="0.00"
 										title="Enter your own adjustment — negative values reduce the total"
-										className="num w-[86px] h-8 border border-line-2 rounded px-2 text-right text-[13px] outline-none bg-surface transition-shadow focus:border-muted-3"
+										className="num w-[86px] h-8 border border-line-2 rounded px-2 text-right text-[13px] outline-none bg-surface transition-colors focus:border-muted-3"
 									/>
 								)}
 							</div>

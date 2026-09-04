@@ -640,7 +640,7 @@ function Knob({ label, hint, value, onChange, ...rest }) {
 				type="number"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
+				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] font-bold outline-none bg-surface transition-colors hover:border-muted-4 focus:border-muted-3"
 				{...rest}
 			/>
 			{hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}
