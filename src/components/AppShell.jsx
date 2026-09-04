@@ -233,7 +233,15 @@ export default function AppShell() {
 				    descendant would silently stop sticking. Every table below lays
 				    out in fr units and compresses rather than overflowing, so the
 				    scroll container bought nothing and cost the sticky toolbars. */}
-				<main key={pathname} className="flex-1 min-w-0 animate-fade-up">
+				{/* The fade here must stay opacity-only. A transform — even the
+				    translateY(0) that a fade-up animation retains under
+				    `fill-mode: both` — would make this element the containing block
+				    for every `position: fixed` descendant, and the New PO and lost
+				    sale forms are fixed overlays offset by the sidebar and top bar.
+				    They would be pushed a second sidebar-width off-screen, and
+				    ItemPicker's fixed dropdown would resolve its viewport
+				    coordinates against the wrong origin. */}
+				<main key={pathname} className="flex-1 min-w-0 animate-fade-in">
 					<Outlet />
 				</main>
 			</div>
