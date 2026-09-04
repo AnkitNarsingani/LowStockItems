@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import ItemPicker from './ItemPicker';
 import ItemDetailsPanel from './ItemDetailsPanel';
 
@@ -171,26 +171,6 @@ function POLineRow({
 	const overMax =
 		!line.isFreeText && !isNaN(maxCap) && maxCap > 0 && onHand + qty > maxCap;
 
-	// Overflow menu, anchored to this row.
-	const [menuOpen, setMenuOpen] = useState(false);
-	const menuRef = useRef(null);
-
-	useEffect(() => {
-		if (!menuOpen) return undefined;
-		const onDown = (e) => {
-			if (menuRef.current && !menuRef.current.contains(e.target)) {
-				setMenuOpen(false);
-			}
-		};
-		const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
-		document.addEventListener('mousedown', onDown);
-		document.addEventListener('keydown', onKey);
-		return () => {
-			document.removeEventListener('mousedown', onDown);
-			document.removeEventListener('keydown', onKey);
-		};
-	}, [menuOpen]);
-
 	// items-stretch, not items-start: a cell sized to its own content leaves the
 	// vertical border-r short of the row height whenever a sibling cell is taller
 	// (a filled item cell carries three lines). Padding keeps content top-aligned.
@@ -294,56 +274,22 @@ function POLineRow({
 			    data column. Absolute against the row keeps it centred on that row
 			    whatever its height. The trailing blank row has nothing to remove,
 			    and deleting it would only make the table grow a fresh one. */}
-			{/* Overflow — only a real Zoho item has details to show.
-
-			    The wrapper's -translate-y-1/2 is a transform, which creates a
-			    stacking context. That confined the menu's own z-index to this
-			    wrapper, so later rows painted straight over it; raising the
-			    wrapper is what actually lifts the menu. */}
+			{/* Item details — one click, straight to the panel. This was an
+			    overflow menu whose only entry was this action, so the menu cost a
+			    click and bought nothing. Losing it also loses the stacking-context
+			    workaround the popup needed: a plain button has nothing to lift.
+			    Only a real Zoho item has details to show. */}
 			{line.item_id && (
-				<div
-					ref={menuRef}
-					className={`absolute right-[-76px] top-1/2 -translate-y-1/2 ${
-						menuOpen ? 'z-50' : 'z-10'
-					}`}>
-					<button
-						onClick={() => setMenuOpen((v) => !v)}
-						title="More"
-						aria-label={`More actions for ${line.name || 'this line'}`}
-						aria-haspopup="menu"
-						aria-expanded={menuOpen}
-						className={`w-7 h-7 rounded border bg-surface flex items-center justify-center cursor-pointer ${
-							menuOpen
-								? 'border-brand text-link'
-								: 'border-line-2 text-body-3 hover:bg-surface-2'
-						}`}>
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-							<circle cx="5" cy="12" r="1.6" />
-							<circle cx="12" cy="12" r="1.6" />
-							<circle cx="19" cy="12" r="1.6" />
-						</svg>
-					</button>
-
-					{menuOpen && (
-						<div
-							role="menu"
-							className="absolute right-0 top-9 z-40 min-w-[190px] bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.18)] overflow-hidden">
-							<button
-								role="menuitem"
-								onClick={() => {
-									setMenuOpen(false);
-									onViewDetails(line);
-								}}
-								className="w-full text-left px-3 py-2.5 text-[13px] text-body bg-surface hover:bg-brand-bg hover:text-link cursor-pointer border-none flex items-center gap-2">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-									<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
-									<path d="M8 12h8M8 16h5" />
-								</svg>
-								View Item Details
-							</button>
-						</div>
-					)}
-				</div>
+				<button
+					onClick={() => onViewDetails(line)}
+					title="View item details"
+					aria-label={`View details for ${line.name || 'this line'}`}
+					className="absolute right-[-76px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-bg hover:border-brand hover:text-link">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+						<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+						<path d="M8 12h8M8 16h5" />
+					</svg>
+				</button>
 			)}
 
 			{(line.item_id || line.isFreeText) && (
