@@ -499,7 +499,7 @@ export default function NewPOPage() {
 						<div className="flex justify-between items-center py-2.5 border-t border-line-4 text-[13.5px] gap-2">
 							<span className="text-body-2 flex-shrink-0">Discount</span>
 							<div className="flex items-center gap-2.5">
-								<div className="flex border border-line-2 rounded-lg overflow-hidden h-8 bg-surface transition-shadow focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
+								<div className="flex border border-line-2 rounded-lg overflow-hidden h-8 bg-surface transition-shadow focus-within:border-brand">
 									<input
 										type="number"
 										min="0"
@@ -544,7 +544,7 @@ export default function NewPOPage() {
 										onChange={(e) => setAdjustment(e.target.value)}
 										placeholder="0.00"
 										title="Enter your own adjustment — negative values reduce the total"
-										className="num w-[86px] h-8 border border-line-2 rounded-lg px-2 text-right text-[13px] outline-none bg-surface transition-shadow focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
+										className="num w-[86px] h-8 border border-line-2 rounded-lg px-2 text-right text-[13px] outline-none bg-surface transition-shadow focus:border-brand"
 									/>
 								)}
 							</div>
@@ -565,7 +565,7 @@ export default function NewPOPage() {
 				<button
 					onClick={handleCreate}
 					disabled={!canCreate}
-					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
+					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{creating && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}

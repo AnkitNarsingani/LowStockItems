@@ -101,7 +101,7 @@ export default function BulkAddItemsModal({
 					{/* Left — catalogue */}
 					<div className="w-1/2 border-r border-line-3 flex flex-col min-h-0">
 						<div className="px-4 py-3.5">
-							<div className="flex items-center gap-2 border border-line-2 rounded-lg px-[11px] py-[9px] transition-shadow focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
+							<div className="flex items-center gap-2 border border-line-2 rounded-lg px-[11px] py-[9px] transition-shadow focus-within:border-brand">
 								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 									<circle cx="11" cy="11" r="7" />
 									<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -264,7 +264,7 @@ export default function BulkAddItemsModal({
 					<button
 						onClick={handleAdd}
 						disabled={pickedList.length === 0}
-						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 ease-smooth">
+						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 ease-smooth">
 						Add Items
 					</button>
 					<button

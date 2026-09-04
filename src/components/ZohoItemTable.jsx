@@ -268,7 +268,7 @@ export default function ZohoItemsTable() {
 
 				<button
 					onClick={() => openNewPO(false)}
-					className="h-9 px-[15px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
+					className="h-9 px-[15px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6">
 						<path d="M12 5v14M5 12h14" strokeLinecap="round" />
 					</svg>
@@ -391,7 +391,7 @@ export default function ZohoItemsTable() {
 			    reachable however far down a long catalogue you are. */}
 			<div className="sticky top-[52px] z-20 -mx-7 px-7 pt-1 pb-3 bg-app/85 backdrop-blur-md">
 				<div className="flex items-center gap-2.5 flex-wrap">
-					<div className="group flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-72 max-w-full shadow-card transition-all duration-200 ease-smooth focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
+					<div className="group flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-72 max-w-full shadow-card transition-all duration-200 ease-smooth focus-within:border-brand">
 						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
 							<circle cx="11" cy="11" r="7" />
 							<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -684,7 +684,7 @@ export default function ZohoItemsTable() {
 						</button>
 						<button
 							onClick={() => openNewPO(true)}
-							className="h-8 px-4 rounded-lg border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[12.5px] cursor-pointer shadow-brand hover:shadow-brand-hover flex items-center gap-1.5 whitespace-nowrap">
+							className="h-8 px-4 rounded-lg border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[12.5px] cursor-pointer shadow-card hover:shadow-card-hover flex items-center gap-1.5 whitespace-nowrap">
 							Create purchase order
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
 								<path d="M5 12h14M13 6l6 6-6 6" />

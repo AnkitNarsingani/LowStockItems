@@ -120,29 +120,10 @@ function App() {
 	// on every route.
 	if (!isAuthenticated) {
 		return (
-			<div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-				{/* Two soft brand washes behind the card. They give the empty screen
-				    some depth without putting anything on it to read. */}
-				<div
-					aria-hidden
-					className="pointer-events-none absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full blur-3xl opacity-50"
-					style={{
-						background:
-							'radial-gradient(circle, rgba(64,141,251,.30), transparent 68%)',
-					}}
-				/>
-				<div
-					aria-hidden
-					className="pointer-events-none absolute -bottom-48 -right-32 w-[560px] h-[560px] rounded-full blur-3xl opacity-45"
-					style={{
-						background:
-							'radial-gradient(circle, rgba(47,123,224,.24), transparent 68%)',
-					}}
-				/>
-
-				<div className="relative w-full max-w-[420px] bg-surface border border-line rounded-2xl shadow-float p-8 animate-fade-up">
+			<div className="min-h-screen flex items-center justify-center p-6">
+				<div className="w-full max-w-[420px] bg-surface border border-line rounded-2xl shadow-float p-8 animate-fade-up">
 					<div className="flex items-center gap-3 mb-7">
-						<div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[20px] shadow-brand">
+						<div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[20px] shadow-card">
 							L
 						</div>
 						<div>
@@ -172,7 +153,7 @@ function App() {
 
 					<button
 						onClick={handleLogin}
-						className="w-full h-11 rounded-xl border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[14px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
+						className="w-full h-11 rounded-xl border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[14px] cursor-pointer shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
 						Continue with Zoho
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
 							<path d="M5 12h14M13 6l6 6-6 6" />

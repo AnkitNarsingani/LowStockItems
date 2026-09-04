@@ -144,7 +144,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						? 'Loading items…'
 						: 'Type or click to select an item.'
 				}
-				className="w-full h-[34px] border border-line-2 rounded-lg px-2.5 text-[13.5px] outline-none text-body bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
+				className="w-full h-[34px] border border-line-2 rounded-lg px-2.5 text-[13.5px] outline-none text-body bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
 			/>
 
 			{open && pos && (

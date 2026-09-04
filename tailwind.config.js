@@ -72,9 +72,6 @@ module.exports = {
 					'0 2px 4px rgba(28,42,70,.05), 0 8px 20px rgba(28,42,70,.09)',
 				pop: '0 4px 10px rgba(28,42,70,.08), 0 14px 34px rgba(28,42,70,.14)',
 				float: '0 10px 20px rgba(28,42,70,.10), 0 24px 60px rgba(28,42,70,.18)',
-				brand: '0 1px 2px rgba(31,90,180,.20), 0 4px 12px rgba(64,141,251,.30)',
-				'brand-hover':
-					'0 2px 4px rgba(31,90,180,.22), 0 8px 22px rgba(64,141,251,.40)',
 				'inner-line': 'inset 0 -1px 0 #eceef1',
 			},
 			transitionTimingFunction: {

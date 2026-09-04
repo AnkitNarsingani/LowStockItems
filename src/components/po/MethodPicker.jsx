@@ -500,7 +500,7 @@ export default function MethodPicker({ lines, onApply }) {
 						{preview && !compare && (
 							<button
 								onClick={() => apply(preview.methods[0])}
-								className="h-[38px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth animate-pop-in">
+								className="h-[38px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth animate-pop-in">
 								Use these quantities
 							</button>
 						)}
@@ -618,7 +618,7 @@ export default function MethodPicker({ lines, onApply }) {
 										{compare && (
 											<button
 												onClick={() => apply(m)}
-												className="mt-1 h-[26px] px-2.5 rounded-md border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[11px] cursor-pointer shadow-brand hover:shadow-brand-hover">
+												className="mt-1 h-[26px] px-2.5 rounded-md border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[11px] cursor-pointer shadow-card hover:shadow-card-hover">
 												Use
 											</button>
 										)}
@@ -648,7 +648,7 @@ function Knob({ label, hint, value, onChange, ...rest }) {
 				type="number"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				className="num w-full h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
+				className="num w-full h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
 				{...rest}
 			/>
 			{hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}

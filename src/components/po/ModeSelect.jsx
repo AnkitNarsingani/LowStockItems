@@ -95,7 +95,7 @@ export default function ModeSelect({
 				aria-expanded={open}
 				className={`w-full min-h-[38px] px-3 py-2 border rounded-lg bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-all duration-200 ease-smooth ${
 					open
-						? 'border-brand shadow-[0_0_0_3px_rgba(64,141,251,.14)]'
+						? 'border-brand'
 						: 'border-line-2 shadow-card hover:border-muted-4'
 				}`}>
 				{multiple ? (

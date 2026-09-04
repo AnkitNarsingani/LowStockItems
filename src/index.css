@@ -48,14 +48,15 @@ input::placeholder {
 	color: #a7adb5;
 }
 
-/* One focus ring for the whole app. Keyboard users get a clear brand halo;
-   mouse users never see it, so the ring can be bold without being noisy. */
+/* One focus ring for the whole app: a crisp line, not a glow. Keyboard users
+   still get an unmistakable indicator; mouse users never see it.
+
+   A real `outline` rather than a spread box-shadow, so it follows each
+   element's own border-radius instead of forcing one, and never reads as a
+   halo. */
 :focus-visible {
-	outline: none;
-	box-shadow:
-		0 0 0 2px #ffffff,
-		0 0 0 4px rgba(64, 141, 251, 0.55);
-	border-radius: 4px;
+	outline: 2px solid #2f7be0;
+	outline-offset: 2px;
 }
 
 /* Every button and control settles under the pointer the same way. */

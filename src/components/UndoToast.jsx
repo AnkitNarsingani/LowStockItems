@@ -35,7 +35,7 @@ export default function UndoToast({ label, duration = 5000, onUndo, onExpire }) 
 			style={{ background: '#232830' }}>
 			<div className="flex items-center gap-3 px-4 py-3.5">
 				<span
-					className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 shadow-[0_1px_4px_rgba(26,157,84,.5)]"
+					className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
 					style={{ background: '#1a9d54' }}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
 						<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />

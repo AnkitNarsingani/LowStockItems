@@ -187,7 +187,7 @@ export default function ReorderSuggestionsPage() {
 				<button
 					onClick={suggestions ? approveAll : compute}
 					disabled={busy || (suggestions && counts.pending === 0)}
-					className="h-9 px-[18px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center gap-2 transition-all duration-200 ease-smooth">
+					className="h-9 px-[18px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{busy && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
@@ -309,7 +309,7 @@ export default function ReorderSuggestionsPage() {
 						<button
 							onClick={compute}
 							disabled={busy}
-							className="mt-4 h-9 px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40">
+							className="mt-4 h-9 px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40">
 							Compute suggestions
 						</button>
 					</div>

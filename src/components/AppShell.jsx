@@ -98,7 +98,7 @@ export default function AppShell() {
 			<div className="relative h-[52px] bg-surface/85 backdrop-blur-xl border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
 				{/* Wordmark: the flat blue square becomes a lit tile, which is the
 				    cheapest way to give the chrome a focal point. */}
-				<div className="w-[27px] h-[27px] rounded-[8px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[14px] shadow-brand select-none">
+				<div className="w-[27px] h-[27px] rounded-[8px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[14px] shadow-card select-none">
 					L
 				</div>
 				<div className="font-black text-[15px] text-heading tracking-[-.01em]">
@@ -157,7 +157,7 @@ export default function AppShell() {
 								to={item.to}
 								className={`group relative flex items-center gap-[11px] w-full text-left rounded-lg px-3 py-[9px] text-[13.5px] font-bold no-underline hover:no-underline transition-all duration-200 ease-smooth ${
 									active
-										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-brand'
+										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-card'
 										: 'bg-transparent text-body-2 hover:bg-white hover:text-heading hover:shadow-card'
 								}`}>
 								{/* Active marker on the rail, tucked against the nav's left

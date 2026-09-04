@@ -506,7 +506,7 @@ export default function LostSaleFormPage() {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));
 										}}
-										className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
+										className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
 									/>
 								</div>
 
@@ -517,7 +517,7 @@ export default function LostSaleFormPage() {
 										onClick={() => removeRow(r.key)}
 										title="Remove line"
 										aria-label={`Remove ${r.name || 'this line'}`}
-										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 reveal-on-hover hover:bg-danger-bg hover:border-danger-border hover:text-danger">
+										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 											<path d="M3 6h18" />
 											<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
@@ -550,7 +550,7 @@ export default function LostSaleFormPage() {
 				<button
 					onClick={handleSave}
 					disabled={saving}
-					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
+					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{saving && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}

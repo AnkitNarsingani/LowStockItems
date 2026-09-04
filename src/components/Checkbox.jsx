@@ -35,7 +35,7 @@ export default function Checkbox({
 					: 'cursor-pointer active:scale-90'
 			} ${
 				filled
-					? 'bg-brand border border-brand shadow-[0_1px_3px_rgba(64,141,251,.4)]'
+					? 'bg-brand border border-brand'
 					: 'bg-surface border-[1.5px] border-muted-4 hover:border-brand-400 hover:bg-brand-50'
 			}`}>
 			{checked ? (
@@ -73,7 +73,7 @@ export function RoundCheck({ checked, size = 22 }) {
 			style={{ width: size, height: size }}
 			className={`rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150 ease-smooth ${
 				checked
-					? 'bg-ok border border-ok shadow-[0_1px_4px_rgba(26,157,84,.35)] scale-100'
+					? 'bg-ok border border-ok scale-100'
 					: 'bg-surface border-[1.5px] border-line-2'
 			}`}>
 			{checked && (

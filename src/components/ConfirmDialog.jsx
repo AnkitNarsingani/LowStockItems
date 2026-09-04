@@ -38,7 +38,7 @@ export default function ConfirmDialog({
 	const confirmClasses =
 		tone === 'danger'
 			? 'border-danger bg-danger text-white hover:brightness-95'
-			: 'border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white hover:shadow-brand-hover';
+			: 'border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white hover:shadow-card-hover';
 
 	return (
 		<div

@@ -11,7 +11,7 @@ export default function Toggle({ on, onChange, disabled }) {
 				disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
 			} ${
 				on
-					? 'bg-brand shadow-[0_1px_3px_rgba(64,141,251,.45)]'
+					? 'bg-brand'
 					: 'bg-muted-4 hover:bg-muted-3'
 			}`}>
 			{/* The knob travels on a spring curve — it lands with a hint of settle,

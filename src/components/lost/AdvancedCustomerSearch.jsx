@@ -90,7 +90,7 @@ export default function AdvancedCustomerSearch({
 					<select
 						value={field}
 						onChange={(e) => setField(e.target.value)}
-						className="h-[38px] border border-line-2 rounded-lg px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
+						className="h-[38px] border border-line-2 rounded-lg px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-brand">
 						{FIELDS.map((f) => (
 							<option key={f.id} value={f.id}>
 								{f.label}
@@ -104,12 +104,12 @@ export default function AdvancedCustomerSearch({
 						onKeyDown={(e) => e.key === 'Enter' && runSearch()}
 						placeholder="Search"
 						autoFocus
-						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] outline-none focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
+						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] outline-none focus:border-brand"
 					/>
 
 					<button
 						onClick={runSearch}
-						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
+						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
 						Search
 					</button>
 				</div>

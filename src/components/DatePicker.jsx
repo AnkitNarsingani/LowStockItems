@@ -118,7 +118,7 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 				onClick={() => setOpen((v) => !v)}
 				className={`w-full h-[38px] border rounded-lg bg-surface flex items-center justify-between px-3 text-[13.5px] text-body cursor-pointer transition-all duration-200 ease-smooth ${
 					open
-						? 'border-brand shadow-[0_0_0_3px_rgba(64,141,251,.14)]'
+						? 'border-brand'
 						: invalid
 							? 'border-danger'
 							: 'border-line-2'
@@ -178,7 +178,7 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 							if (disabled) cls += 'text-[#dfe3e8] cursor-not-allowed';
 							else if (isSel)
 								cls +=
-									'bg-gradient-to-br from-brand-400 to-brand-600 text-white font-black cursor-pointer shadow-brand';
+									'bg-gradient-to-br from-brand-400 to-brand-600 text-white font-black cursor-pointer shadow-card';
 							else if (c.other) cls += 'text-[#c4c9d0] cursor-pointer';
 							else if (isToday)
 								cls +=
