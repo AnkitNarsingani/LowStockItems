@@ -1,8 +1,9 @@
 import './ItemRow.css';
 import Checkbox from './Checkbox';
+import { simpleQuantityFor } from './ZohoAPI';
 
 // Shared so the header and the rows can never drift apart.
-export const LOW_TABLE_COLS = '38px 2.4fr 1fr 1fr 1.2fr 1.2fr 1.3fr 0.9fr';
+export const LOW_TABLE_COLS = '38px 2.4fr 1fr 1fr 1.2fr 1.2fr 1.3fr 0.9fr 1.1fr';
 
 const money = (v) =>
 	'₹' +
@@ -16,6 +17,7 @@ const dec2 = (v) => (v == null || v === '' ? '—' : Number(v).toFixed(2));
 export default function ItemRow({ item, selected, toggleSelect }) {
 	const stock = Number(item.stock_on_hand);
 	const reorder = item.reorder_level;
+	const simpleQty = simpleQuantityFor(item);
 
 	// Design's stockColorFor: red at or below zero, amber at or below the
 	// reorder point, green otherwise.
@@ -67,6 +69,18 @@ export default function ItemRow({ item, selected, toggleSelect }) {
 			</div>
 
 			<div className="text-muted truncate">{item.unit || 'box'}</div>
+
+			{/* What a Simple-mode PO would order for this item. Taken from the
+			    same helper the PO itself uses, so the column can never disagree
+			    with what actually gets raised — including its floor and its rule
+			    that an item needing nothing is not ordered at all. */}
+			<div className="num text-right pr-2.5 font-bold text-body">
+				{simpleQty == null ? (
+					<span className="font-normal text-muted-2">—</span>
+				) : (
+					simpleQty
+				)}
+			</div>
 		</div>
 	);
 }

@@ -356,6 +356,7 @@ export default function ZohoItemsTable() {
 					<div className="text-right pr-2.5">REORDER LEVEL</div>
 					<div className="text-right pr-2.5">MAXIMUM CAPACITY</div>
 					<div>USAGE UNIT</div>
+					<div className="text-right pr-2.5">SIMPLE QTY</div>
 				</div>
 
 				{Object.entries(groupedItems).map(([group, groupItems]) => {
