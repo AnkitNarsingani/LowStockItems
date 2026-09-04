@@ -11,6 +11,12 @@ import DatePicker from '../components/DatePicker';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// The PO item table's proportions, minus the columns a lost sale has no use
+// for. minmax(0,…) for the same reason it does there: header and rows are
+// separate grids, so a bare fr would let an input's intrinsic width size one
+// row's columns differently and step the table out of alignment.
+const ITEM_COLS = 'minmax(0,2.1fr) minmax(0,0.9fr) minmax(0,0.9fr)';
+
 let keySeq = 0;
 const nextKey = () => `lost-${++keySeq}`;
 
@@ -211,6 +217,11 @@ export default function LostSaleFormPage() {
 
 	const filledRows = useMemo(() => rows.filter(isFilled), [rows]);
 
+	const totalQtyWanted = useMemo(
+		() => filledRows.reduce((s, r) => s + (Number(r.qty) || 0), 0),
+		[filledRows],
+	);
+
 	const validate = () => {
 		const next = {};
 
@@ -391,23 +402,29 @@ export default function LostSaleFormPage() {
 					</Field>
 				</div>
 
-				{/* Item table */}
+				{/* Item table — the PO page's table, column for column, so the two
+				    forms read as one product. */}
 				<div className="px-8 pb-6">
-					<div className="bg-surface border border-line rounded overflow-visible mr-11">
-						<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line">
+					<div className="bg-surface border border-line rounded overflow-visible mr-12">
+						<div className="flex items-center justify-between gap-3 px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
 							<div className="font-bold text-[14px] text-body">Item Table</div>
-							{errors.items && (
+							{errors.items ? (
 								<div className="text-[12px] text-danger">{errors.items}</div>
+							) : (
+								<div className="num text-[12.5px] text-body-3">
+									{filledRows.length} item{filledRows.length !== 1 ? 's' : ''}
+								</div>
 							)}
 						</div>
 
 						<div
 							className="grid bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em]"
-							style={{
-								gridTemplateColumns: 'minmax(0,2.4fr) minmax(0,1fr)',
-							}}>
+							style={{ gridTemplateColumns: ITEM_COLS }}>
 							<div className="px-3.5 py-2.5 border-r border-line min-w-0">
 								ITEM DETAILS
+							</div>
+							<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
+								STOCK ON HAND
 							</div>
 							<div className="px-3.5 py-2.5 text-right min-w-0">
 								QTY WANTED{' '}
@@ -417,13 +434,13 @@ export default function LostSaleFormPage() {
 							</div>
 						</div>
 
-						{rows.map((r) => (
+						{rows.map((r) => {
+							const onHand = Number(r.available_stock ?? r.stock_on_hand ?? 0) || 0;
+							return (
 							<div
 								key={r.key}
 								className="grid border-b border-line items-stretch relative"
-								style={{
-									gridTemplateColumns: 'minmax(0,2.4fr) minmax(0,1fr)',
-								}}>
+								style={{ gridTemplateColumns: ITEM_COLS }}>
 								<div className="px-3.5 py-3 border-r border-line min-w-0">
 									{isFilled(r) ? (
 										<div className="pl-2.5">
@@ -437,15 +454,15 @@ export default function LostSaleFormPage() {
 													</span>
 												)}
 											</div>
+
 											{r.isFreeText ? (
-												<div className="text-[11px] text-warn-2 mt-1 leading-[1.35] max-w-[280px]">
+												<div className="text-[11px] text-warn-2 mt-1 leading-[1.35] max-w-[230px]">
 													Free-text item — recorded, but excluded from the
 													reorder algorithm.
 												</div>
 											) : (
 												<div className="text-[11.5px] text-muted-2 mt-0.5">
-													SKU: {r.sku || '—'} · Stock on Hand{' '}
-													{Number(r.available_stock ?? r.stock_on_hand ?? 0)}
+													SKU: {r.sku || '—'}
 												</div>
 											)}
 										</div>
@@ -456,6 +473,22 @@ export default function LostSaleFormPage() {
 											error={itemsError}
 											onPick={(item) => pickItem(r.key, item)}
 										/>
+									)}
+								</div>
+
+								{/* Stock at the moment of logging — the same colour rule the
+								    PO table uses, so an out-of-stock line reads the same way
+								    on both pages. */}
+								<div className="num px-3.5 py-3 border-r border-line text-right text-[13.5px] min-w-0">
+									{!isFilled(r) || r.isFreeText ? (
+										<span className="text-muted-2">—</span>
+									) : (
+										<span
+											className={
+												onHand > 0 ? 'text-ok font-bold' : 'text-danger font-bold'
+											}>
+											{onHand}
+										</span>
 									)}
 								</div>
 
@@ -490,7 +523,20 @@ export default function LostSaleFormPage() {
 									</button>
 								)}
 							</div>
-						))}
+							);
+						})}
+					</div>
+
+					{/* Kept quiet, and nudged in from the edge so it sits under the
+					    quantity column rather than the table's outer rule — the same
+					    placement the PO page gives its running total. */}
+					<div className="mr-12 mt-3 flex justify-end">
+						<div className="text-[12.5px] text-muted pr-6">
+							Total Quantity{' '}
+							<span className="num text-muted-2 ml-1">
+								{totalQtyWanted.toLocaleString('en-IN')}
+							</span>
+						</div>
 					</div>
 				</div>
 			</div>

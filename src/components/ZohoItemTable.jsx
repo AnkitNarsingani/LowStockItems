@@ -12,6 +12,7 @@ import {
 	startLoad,
 } from '../lib/lowStockRun';
 import ItemRow, { LOW_TABLE_COLS } from './ItemRow';
+import MetricCard from './MetricCard';
 import Checkbox from './Checkbox';
 import './ItemRow.css';
 
@@ -451,14 +452,3 @@ export default function ZohoItemsTable() {
 	);
 }
 
-function MetricCard({ label, value, accent }) {
-	return (
-		<div className="flex-1 bg-surface-3 border border-line rounded-[10px] px-5 py-[18px] text-center">
-			<div className="text-[13px] text-muted mb-1.5">{label}</div>
-			<div
-				className={`num text-[26px] font-black ${accent ? 'text-ok' : 'text-heading'}`}>
-				{value ?? '—'}
-			</div>
-		</div>
-	);
-}

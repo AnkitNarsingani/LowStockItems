@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { listLostSales, deleteLostSale } from '../lib/lostSales';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
+import MetricCard from '../components/MetricCard';
 
 const COLS = '110px minmax(0,1.4fr) minmax(0,2.6fr) 110px 80px';
 
@@ -143,8 +144,8 @@ export default function LostSalesListPage() {
 			</div>
 
 			{/* Toolbar */}
-			<div className="flex items-center gap-2.5 mb-3.5 flex-wrap">
-				<div className="flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-60 max-w-full">
+			<div className="flex items-center gap-2.5 mt-3.5 mb-3.5 flex-wrap">
+				<div className="flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-60 max-w-full">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 						<circle cx="11" cy="11" r="7" />
 						<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -157,16 +158,16 @@ export default function LostSalesListPage() {
 					/>
 				</div>
 				<div className="flex-1" />
-				<span className="text-[12.5px] text-muted num">
-					{filtered.length.toLocaleString('en-IN')} record
-					{filtered.length !== 1 ? 's' : ''} ·{' '}
-					{totalItems.toLocaleString('en-IN')} item
-					{totalItems !== 1 ? 's' : ''} · {totalQty.toLocaleString('en-IN')} units
-				</span>
+				{search && (
+					<span className="text-[12.5px] text-muted num">
+						{filtered.length.toLocaleString('en-IN')} of{' '}
+						{records.length.toLocaleString('en-IN')} matching
+					</span>
+				)}
 			</div>
 
 			{banner && (
-				<div className="flex items-center justify-between gap-3 px-4 py-2.5 mb-3.5 rounded border bg-green-50 border-green-200 text-ok text-[13px]">
+				<div className="flex items-center justify-between gap-3 px-4 py-2.5 mb-3.5 rounded-[10px] border bg-green-50 border-green-200 text-ok text-[13px]">
 					<span className="flex items-center gap-2 min-w-0">
 						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-shrink-0">
 							<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -183,13 +184,33 @@ export default function LostSalesListPage() {
 			)}
 
 			{error && (
-				<div className="px-4 py-2.5 mb-3.5 rounded border bg-red-50 border-danger-border text-danger text-[13px]">
+				<div className="px-4 py-2.5 mb-3.5 rounded-[10px] border bg-red-50 border-danger-border text-danger text-[13px]">
 					{error}
 				</div>
 			)}
 
+			{/* Metric cards — the same three figures the toolbar used to spell out
+			    in a sentence, given the weight the low-stock list gives its own.
+			    Units is accented because it is the one that feeds the reorder
+			    engine; the other two only describe the log. */}
+			<div className="flex gap-4 mb-[18px]">
+				<MetricCard
+					label="Records"
+					value={filtered.length.toLocaleString('en-IN')}
+				/>
+				<MetricCard
+					label="Items wanted"
+					value={totalItems.toLocaleString('en-IN')}
+				/>
+				<MetricCard
+					label="Units wanted"
+					value={totalQty.toLocaleString('en-IN')}
+					accent
+				/>
+			</div>
+
 			{/* Table */}
-			<div className="bg-surface border border-line rounded overflow-hidden">
+			<div className="bg-surface border border-line rounded-[10px] overflow-hidden">
 				<div
 					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em] items-center"
 					style={{ gridTemplateColumns: COLS }}>
@@ -211,10 +232,19 @@ export default function LostSalesListPage() {
 						))}
 					</div>
 				) : filtered.length === 0 ? (
-					<div className="p-10 text-center text-muted-2 text-[13px]">
-						{records.length === 0
-							? 'No lost sales recorded yet.'
-							: 'No records match your search.'}
+					/* The same shape the reorder list uses when it has nothing to
+					   show: a heading, then a sentence explaining why it matters. */
+					<div className="px-5 py-14 text-center">
+						<div className="text-[14px] font-bold text-heading mb-1">
+							{records.length === 0
+								? 'No lost sales recorded yet'
+								: 'Nothing matches that search'}
+						</div>
+						<p className="text-[13px] text-muted-2 m-0 max-w-[520px] mx-auto leading-relaxed">
+							{records.length === 0
+								? 'A lost sale is demand Zoho never sees — someone asked for stock that was not there. Logging it is the only way that demand reaches the reorder suggestions.'
+								: 'Try a different customer or item name, or clear the search to see every record.'}
+						</p>
 					</div>
 				) : (
 					visible.map((r) => (
