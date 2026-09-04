@@ -12,6 +12,58 @@ import UndoToast from '../components/UndoToast';
 const COLS = 'minmax(0,2.4fr) minmax(0,1.6fr) minmax(0,1.6fr) 130px';
 const UNDO_WINDOW = 5000;
 
+// §B.6's three tiers, as a filling meter: red, amber, then green as the
+// evidence behind a proposal grows. The wording of each tip follows the
+// thresholds in confidenceFor, so the two cannot drift apart silently.
+const CONFIDENCE_SEGMENTS = 3;
+const CONFIDENCE = {
+	low: {
+		filled: 1,
+		fill: 'bg-danger',
+		tip: 'Low confidence — limited stock history, so this proposal stays deliberately conservative.',
+	},
+	medium: {
+		filled: 2,
+		fill: 'bg-warn',
+		tip: 'Medium confidence — 90+ days of stock history and some sales activity behind it.',
+	},
+	high: {
+		filled: 3,
+		fill: 'bg-ok',
+		tip: 'High confidence — 180+ days of stock history and steady sales behind it.',
+	},
+};
+
+/**
+ * Confidence as a three-segment meter, with the word itself one hover away.
+ *
+ * A native title, not a positioned element: the list container clips its
+ * children (overflow-hidden, for its rounded corners), so a CSS tooltip would
+ * be cut off on the first and last rows. The browser draws a native one
+ * outside the page entirely, where nothing can clip it.
+ */
+function ConfidenceBar({ level }) {
+	const tier = CONFIDENCE[level] ? level : 'low';
+	const cfg = CONFIDENCE[tier];
+
+	return (
+		<span
+			className="flex items-center gap-[3px] flex-shrink-0"
+			title={cfg.tip}
+			role="img"
+			aria-label={`${tier} confidence`}>
+			{Array.from({ length: CONFIDENCE_SEGMENTS }, (_, i) => (
+				<span
+					key={i}
+					className={`w-[9px] h-[7px] rounded-[2px] ${
+						i < cfg.filled ? cfg.fill : 'bg-line-3'
+					}`}
+				/>
+			))}
+		</span>
+	);
+}
+
 /**
  * Reorder-point suggestion review — Engine B.
  *
@@ -205,10 +257,13 @@ export default function ReorderSuggestionsPage() {
 								<div className="font-bold text-[14px] text-body truncate">
 									{s.item_name}
 								</div>
-								<div
-									className="text-[11.5px] text-muted-2 mt-[3px] truncate"
-									title={s.reason}>
-									{subLineFor(s)}
+								<div className="flex items-center gap-2 mt-[3px] min-w-0">
+									<span
+										className="text-[11.5px] text-muted-2 truncate"
+										title={s.reason}>
+										{subLineFor(s)}
+									</span>
+									<ConfidenceBar level={s.confidence} />
 								</div>
 							</div>
 

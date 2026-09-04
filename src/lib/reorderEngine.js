@@ -232,7 +232,13 @@ function round2(n) {
 	return Math.round(n * 100) / 100;
 }
 
-/** The list's sub-line: velocity, logged lost sales, confidence. */
+/**
+ * The list's sub-line: velocity and logged lost sales.
+ *
+ * Confidence is no longer spelled out here — the list shows it as a meter and
+ * names it on hover, so repeating the word on every row only crowded out the
+ * two figures that actually differ between items.
+ */
 export function subLineFor(s) {
 	const parts = [`Velocity ${s.demand_per_day}/day`];
 	parts.push(
@@ -240,6 +246,5 @@ export function subLineFor(s) {
 			? 'no lost sales logged'
 			: `${s.lost_sales_count} lost sale${s.lost_sales_count === 1 ? '' : 's'} logged`,
 	);
-	parts.push(`${s.confidence} confidence`);
 	return parts.join(' · ');
 }
