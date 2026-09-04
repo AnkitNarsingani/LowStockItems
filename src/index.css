@@ -67,9 +67,16 @@ button {
 }
 
 /* A press should feel like a press. Applied to buttons that aren't disabled,
-   and kept tiny — 1px of travel is felt more than it is seen. */
-button:not(:disabled):active {
+   and kept tiny — 1px of travel is felt more than it is seen.
+
+   `.no-press` opts out: the row-level delete and item-details buttons should
+   register as plain targets, with nothing moving under the cursor. */
+button:not(:disabled):not(.no-press):active {
 	transform: translateY(1px);
+}
+
+.no-press {
+	transition: none !important;
 }
 
 /* Strip the native number spinners. Quantities, rates and adjustments are all

@@ -93,7 +93,7 @@ export default function ModeSelect({
 				onKeyDown={onKeyDown}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				className={`w-full min-h-[38px] px-3 py-2 border rounded bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-all duration-200 ease-smooth ${
+				className={`w-full h-[38px] px-3 border rounded bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-colors duration-150 ${
 					open
 						? 'border-brand'
 						: 'border-line-2 hover:border-muted-4'
@@ -102,26 +102,20 @@ export default function ModeSelect({
 					chosen.length === 0 ? (
 						<span className="text-[13.5px] text-muted-3">{placeholder}</span>
 					) : (
-						<span className="min-w-0">
-							<span className="block text-[13px] font-bold text-body truncate">
-								{chosen.length} method{chosen.length !== 1 ? 's' : ''} selected
-							</span>
-							<span className="block text-[11px] text-muted truncate">
-								{options
-									.filter(isChosen)
-									.map((o) => `${o.n}. ${o.name}`)
-									.join(' · ')}
-							</span>
+						<span
+							className="min-w-0 text-[13px] font-bold text-body truncate"
+							title={options
+								.filter(isChosen)
+								.map((o) => `${o.n}. ${o.name}`)
+								.join(' · ')}>
+							{chosen.length} method{chosen.length !== 1 ? 's' : ''} selected
 						</span>
 					)
 				) : selected ? (
-					<span className="min-w-0">
-						<span className="block text-[13px] font-bold text-body truncate">
-							{selected.n}. {selected.name}
-						</span>
-						<span className="block text-[11px] text-muted truncate">
-							{selected.desc}
-						</span>
+					<span
+						className="min-w-0 text-[13px] font-bold text-body truncate"
+						title={selected.desc}>
+						{selected.n}. {selected.name}
 					</span>
 				) : (
 					<span className="text-[13.5px] text-muted-3">{placeholder}</span>

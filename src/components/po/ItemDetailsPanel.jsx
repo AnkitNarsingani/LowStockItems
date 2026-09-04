@@ -88,19 +88,9 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 	const [loadingTx, setLoadingTx] = useState(false);
 	const [txError, setTxError] = useState(null);
 
-	// The panel slides in on mount and out on close, so it arrives from the edge
-	// it is docked to rather than appearing.
-	const [shown, setShown] = useState(false);
-	useEffect(() => {
-		const id = requestAnimationFrame(() => setShown(true));
-		return () => cancelAnimationFrame(id);
-	}, []);
-
-	const close = useCallback(() => {
-		setShown(false);
-		// Long enough for the slide to finish; the parent unmounts us after.
-		setTimeout(onClose, 220);
-	}, [onClose]);
+	// The panel appears and disappears outright — no slide, so closing is not
+	// held back waiting for one to finish.
+	const close = useCallback(() => onClose(), [onClose]);
 
 	// A document opened from the list. `docOpen` drives the transform while
 	// `openDoc` keeps it mounted, so sliding out shows the document leaving
@@ -245,17 +235,13 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 
 	return (
 		<div
-			className={`fixed inset-0 z-[95] flex justify-end transition-opacity duration-200 ${
-				shown ? 'opacity-100' : 'opacity-0'
-			}`}
+			className="fixed inset-0 z-[95] flex justify-end"
 			style={{ background: 'rgba(20,30,50,.32)' }}
 			onClick={(e) => e.target === e.currentTarget && close()}>
 			<div
-				className={`relative overflow-hidden w-[880px] max-w-full h-full bg-surface shadow-[-12px_0_40px_rgba(10,20,40,.18)] flex flex-col transition-transform duration-200 ease-out ${
-					shown ? 'translate-x-0' : 'translate-x-full'
-				}`}>
+				className="relative overflow-hidden w-[880px] max-w-full h-full bg-surface shadow-[-12px_0_40px_rgba(10,20,40,.18)] flex flex-col">
 				{/* Header */}
-				<div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-line">
+				<div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-line flex-shrink-0">
 					<div className="min-w-0">
 						<div className="text-[11px] font-bold text-muted tracking-[.04em] mb-1">
 							ITEM DETAILS
@@ -298,7 +284,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 				</div>
 
 				{/* Body */}
-				<div className="flex-1 overflow-y-auto">
+				<div className="flex-1 min-h-0 overflow-y-auto">
 					{tab === 'details' ? (
 						<div className="px-5 py-4">
 							{loadingItem ? (

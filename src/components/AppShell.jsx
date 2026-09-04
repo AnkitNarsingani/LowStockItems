@@ -88,14 +88,10 @@ export default function AppShell() {
 			: null,
 	};
 
-	// Anything running anywhere. The top bar carries a hairline for it, so a
-	// background job is visible even on a page that has no other sign of it.
-	const anyBusy = run.phase === 'running' || load.phase === 'loading';
-
 	return (
 		<div className="min-h-screen flex flex-col text-left">
 			{/* TOP BAR */}
-			<div className="relative h-[52px] bg-surface border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0">
+			<div className="h-[52px] bg-surface border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0">
 				{/* Wordmark: the flat blue square becomes a lit tile, which is the
 				    cheapest way to give the chrome a focal point. */}
 				<div className="w-[27px] h-[27px] rounded bg-brand flex items-center justify-center text-white font-black text-[14px] select-none">
@@ -127,19 +123,6 @@ export default function AppShell() {
 					Log out
 				</button>
 
-				{/* Indeterminate hairline along the bottom edge while anything is in
-				    flight — the browser's own loading bar, for our work. */}
-				{anyBusy && (
-					<span className="absolute left-0 right-0 -bottom-px h-[2px] overflow-hidden">
-						<span
-							className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-brand to-transparent"
-							style={{
-								animation:
-									'progressBounce 1.5s cubic-bezier(.5,0,.5,1) infinite',
-							}}
-						/>
-					</span>
-				)}
 			</div>
 
 			<div className="flex-1 flex items-start min-h-0">

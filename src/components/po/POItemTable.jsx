@@ -284,7 +284,7 @@ function POLineRow({
 					onClick={() => onViewDetails(line)}
 					title="View item details"
 					aria-label={`View details for ${line.name || 'this line'}`}
-					className="absolute right-[-76px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
+					className="no-press absolute right-[-76px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 						<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
 						<path d="M8 12h8M8 16h5" />
@@ -297,7 +297,7 @@ function POLineRow({
 					onClick={() => onRemoveLine(line.key)}
 					title="Remove line"
 					aria-label={`Remove ${line.name || 'this line'}`}
-					className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
+					className="no-press absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 						<path d="M3 6h18" />
 						<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />

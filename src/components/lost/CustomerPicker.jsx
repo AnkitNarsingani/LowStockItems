@@ -113,7 +113,7 @@ export default function CustomerPicker({
 					aria-expanded={open}
 					className={`w-full h-[38px] px-3 border rounded bg-surface flex items-center justify-between cursor-pointer text-[13.5px] transition-all duration-200 ease-smooth ${
 						open
-							? 'border-brand'
+							? 'border-line-2'
 							: invalid
 								? 'border-danger'
 								: 'border-line-2'

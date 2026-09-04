@@ -31,7 +31,7 @@ export default function UndoToast({ label, duration = 5000, onUndo, onExpire }) 
 	return (
 		<div
 			role="status"
-			className="toast-rise relative overflow-hidden rounded shadow-[0_14px_38px_rgba(10,20,40,.45)] min-w-[340px] max-w-[460px]"
+			className="toast-rise relative overflow-hidden rounded shadow-[0_14px_38px_rgba(10,20,40,.45)] w-[380px]"
 			style={{ background: '#232830' }}>
 			<div className="flex items-center gap-3 px-4 py-3.5">
 				<span

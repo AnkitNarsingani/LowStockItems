@@ -552,7 +552,7 @@ export default function NewPOPage() {
 
 						<div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-line-3 text-[16px]">
 							<span className="font-black text-heading">Total</span>
-							<span className="num font-black text-[19px] text-brand-700 tracking-[-.02em]">
+							<span className="num font-black text-[19px] text-heading tracking-[-.02em]">
 								{money(summary.total)}
 							</span>
 						</div>

@@ -195,7 +195,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 										}`}>
 										<div className="min-w-0">
 											<div
-												className={`text-[13.5px] font-black truncate ${
+												className={`text-[13.5px] font-bold truncate ${
 													isActive ? 'text-white' : 'text-heading'
 												}`}>
 												{it.name}
@@ -204,7 +204,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 												className={`text-[11px] mt-0.5 truncate ${
 													isActive ? 'text-white/80' : 'text-muted-2'
 												}`}>
-												SKU: {it.sku || '—'} · Purchase Rate:{' '}
+												SKU: {it.sku || '—'} Rate:{' '}
 												{money(it.purchase_rate ?? it.rate)}
 											</div>
 										</div>
@@ -223,7 +223,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 															? 'text-ok'
 															: 'text-danger'
 												}`}>
-												{stock}
+												{stock.toFixed(2)} {it.unit || 'box'}
 											</div>
 										</div>
 									</div>

@@ -517,7 +517,7 @@ export default function LostSaleFormPage() {
 										onClick={() => removeRow(r.key)}
 										title="Remove line"
 										aria-label={`Remove ${r.name || 'this line'}`}
-										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
+										className="no-press absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 											<path d="M3 6h18" />
 											<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />

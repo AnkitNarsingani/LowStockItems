@@ -432,7 +432,19 @@ export default function ZohoItemsTable() {
 					<div className="flex-1" />
 
 					<span className="text-[12px] text-muted font-bold">Group by</span>
-					<div className="flex bg-surface-2 border border-line rounded p-[3px] gap-0.5">
+					{/* The white plate slides between the three options rather than
+					    being repainted under whichever one is active, so a change of
+					    grouping is something you watch happen. Equal thirds keep the
+					    travel a plain multiple of the plate's own width. */}
+					<div className="relative flex w-[300px] bg-surface-2 border border-line rounded p-[3px]">
+						<span
+							aria-hidden
+							className="absolute top-[3px] bottom-[3px] left-[3px] rounded bg-surface border border-line transition-transform duration-300 ease-smooth"
+							style={{
+								width: 'calc((100% - 6px) / 3)',
+								transform: `translateX(${GROUP_TABS.findIndex((t) => t.id === groupBy) * 100}%)`,
+							}}
+						/>
 						{GROUP_TABS.map((t) => (
 							<button
 								key={t.id}
@@ -440,10 +452,10 @@ export default function ZohoItemsTable() {
 									setGroupBy(t.id);
 									setExpandedGroups(new Set());
 								}}
-								className={`border-none px-3 py-[5px] rounded text-[12.5px] font-bold cursor-pointer whitespace-nowrap transition-all duration-200 ease-smooth ${
+								className={`relative z-10 flex-1 border-none bg-transparent px-1 py-[5px] rounded text-[12.5px] font-bold cursor-pointer whitespace-nowrap transition-colors duration-200 ${
 									groupBy === t.id
-										? 'bg-surface text-brand-600'
-										: 'bg-transparent text-muted hover:text-body-3'
+										? 'text-brand-600'
+										: 'text-muted hover:text-body-3'
 								}`}>
 								{t.label}
 							</button>
