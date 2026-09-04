@@ -99,10 +99,10 @@ export default function VendorPicker({ vendors, loading, value, onChange }) {
 				}}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				className={`w-full h-[38px] px-3 border rounded-lg bg-surface flex items-center justify-between cursor-pointer text-[13.5px] transition-all duration-200 ease-smooth ${
+				className={`w-full h-[38px] px-3 border rounded bg-surface flex items-center justify-between cursor-pointer text-[13.5px] transition-all duration-200 ease-smooth ${
 					open
 						? 'border-brand'
-						: 'border-line-2 shadow-card hover:border-muted-4'
+						: 'border-line-2 hover:border-muted-4'
 				} ${selected ? 'text-body' : 'text-muted-3'}`}>
 				<span className="truncate">
 					{loading
@@ -126,9 +126,9 @@ export default function VendorPicker({ vendors, loading, value, onChange }) {
 			</button>
 
 			{open && !loading && (
-				<div className="absolute top-[42px] left-0 right-0 animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop z-30 overflow-hidden">
+				<div className="absolute top-[42px] left-0 right-0 animate-slide-down bg-surface border border-line-2 rounded shadow-pop z-30 overflow-hidden">
 					<div className="p-2">
-						<div className="flex items-center gap-2 border border-line-2 rounded-lg px-[9px] py-[7px] transition-shadow focus-within:border-brand">
+						<div className="flex items-center gap-2 border border-line-2 rounded px-[9px] py-[7px] transition-shadow focus-within:border-brand">
 							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 								<circle cx="11" cy="11" r="7" />
 								<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -163,7 +163,7 @@ export default function VendorPicker({ vendors, loading, value, onChange }) {
 										onClick={() => pick(v)}
 										className={`flex items-center gap-2.5 px-3.5 py-[9px] text-[13.5px] cursor-pointer border-t border-line-4 ${
 											isActive
-												? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white'
+												? 'bg-brand text-white'
 												: 'text-body hover:bg-brand-50'
 										}`}>
 										<span

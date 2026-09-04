@@ -76,33 +76,24 @@ export default function MetricCard({
 		neutral: {
 			value: 'text-heading',
 			chip: 'bg-brand-50 text-brand-600 border-brand-100',
-			rule: 'from-brand-300 to-brand-500',
 		},
 		ok: {
 			value: 'text-ok',
 			chip: 'bg-ok-bg text-ok border-ok-border',
-			rule: 'from-ok/40 to-ok',
 		},
 		warn: {
 			value: 'text-warn',
 			chip: 'bg-warn-bg text-warn-2 border-warn-border',
-			rule: 'from-warn/40 to-warn',
 		},
 	};
 	const t = TONES[resolved] || TONES.neutral;
 
 	return (
-		<div className="group relative flex-1 min-w-0 bg-surface border border-line rounded-xl px-5 py-[17px] shadow-card overflow-hidden transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-card-hover hover:border-line-2">
-			{/* A hairline of the card's own colour along the top, drawn in on
-			    hover. It gives a flat row of cards somewhere for the eye to land. */}
-			<span
-				className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${t.rule} origin-left scale-x-0 transition-transform duration-300 ease-smooth group-hover:scale-x-100`}
-			/>
-
+		<div className="flex-1 min-w-0 bg-surface border border-line rounded px-5 py-[17px]">
 			<div className="flex items-center gap-3">
 				{icon && (
 					<span
-						className={`w-9 h-9 rounded-[10px] border flex items-center justify-center flex-shrink-0 transition-transform duration-200 ease-smooth group-hover:scale-105 ${t.chip}`}>
+						className={`w-9 h-9 rounded border flex items-center justify-center flex-shrink-0 ${t.chip}`}>
 						<svg
 							width="17"
 							height="17"

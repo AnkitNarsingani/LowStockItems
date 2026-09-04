@@ -349,7 +349,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 										</svg>
 									</button>
 									{typeOpen && (
-										<div className="absolute top-7 left-0 z-20 min-w-[190px] animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
+										<div className="absolute top-7 left-0 z-20 min-w-[190px] animate-slide-down bg-surface border border-line-2 rounded shadow-pop overflow-hidden">
 											{TYPE_KEYS.map((k) => (
 												<button
 													key={k}
@@ -361,7 +361,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 													}}
 													className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer border-none ${
 														k === type
-															? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white font-black'
+															? 'bg-brand text-white font-black'
 															: 'bg-surface text-body hover:bg-surface-2'
 													}`}>
 													{TRANSACTION_TYPES[k].label}
@@ -384,7 +384,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 										</svg>
 									</button>
 									{statusOpen && (
-										<div className="absolute top-6 right-0 z-20 min-w-[160px] animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
+										<div className="absolute top-6 right-0 z-20 min-w-[160px] animate-slide-down bg-surface border border-line-2 rounded shadow-pop overflow-hidden">
 											{cfg.statuses.map(([value, label]) => (
 												<button
 													key={value || 'all'}
@@ -395,7 +395,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 													}}
 													className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer border-none ${
 														value === status
-															? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white font-black'
+															? 'bg-brand text-white font-black'
 															: 'bg-surface text-body hover:bg-surface-2'
 													}`}>
 													{label}

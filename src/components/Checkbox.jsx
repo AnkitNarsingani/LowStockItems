@@ -29,7 +29,7 @@ export default function Checkbox({
 				}
 			}}
 			style={{ width: size, height: size }}
-			className={`rounded-[5px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ease-smooth ${
+			className={`rounded flex items-center justify-center flex-shrink-0 transition-all duration-150 ease-smooth ${
 				disabled
 					? 'cursor-not-allowed opacity-50'
 					: 'cursor-pointer active:scale-90'

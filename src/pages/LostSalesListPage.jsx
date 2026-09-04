@@ -197,7 +197,7 @@ export default function LostSalesListPage() {
 				<div className="flex-1" />
 				<button
 					onClick={() => navigate('/lost-sales/new')}
-					className="h-9 px-[15px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
+					className="h-9 px-[15px] rounded border border-brand bg-brand hover:bg-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 transition-all duration-200 ease-smooth">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6">
 						<path d="M12 5v14M5 12h14" strokeLinecap="round" />
 					</svg>
@@ -247,7 +247,7 @@ export default function LostSalesListPage() {
 			</div>
 
 			{banner && (
-				<div className="animate-slide-up-in flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded-xl border bg-ok-bg border-ok-border text-ok text-[13px] shadow-card">
+				<div className="animate-slide-up-in flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded border bg-ok-bg border-ok-border text-ok text-[13px]">
 					<span className="flex items-center gap-2.5 min-w-0">
 						<span className="w-6 h-6 rounded-full bg-ok flex items-center justify-center flex-shrink-0">
 							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2">
@@ -266,14 +266,14 @@ export default function LostSalesListPage() {
 			)}
 
 			{error && (
-				<div className="px-4 py-3 mb-4 rounded-xl border bg-danger-bg border-danger-border text-danger text-[13px] shadow-card">
+				<div className="px-4 py-3 mb-4 rounded border bg-danger-bg border-danger-border text-danger text-[13px]">
 					{error}
 				</div>
 			)}
 
 			{/* Toolbar */}
 			<div className="flex items-center gap-2.5 mb-3.5 flex-wrap">
-				<div className="group flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-72 max-w-full shadow-card transition-all duration-200 ease-smooth focus-within:border-brand">
+				<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-all duration-200 ease-smooth focus-within:border-brand">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
 						<circle cx="11" cy="11" r="7" />
 						<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -313,7 +313,7 @@ export default function LostSalesListPage() {
 			</div>
 
 			{/* Table */}
-			<div className="bg-surface border border-line rounded-xl overflow-hidden shadow-card">
+			<div className="bg-surface border border-line rounded overflow-hidden">
 				<div
 					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em] items-center"
 					style={{ gridTemplateColumns: COLS }}>
@@ -333,7 +333,7 @@ export default function LostSalesListPage() {
 								style={{ gridTemplateColumns: COLS }}>
 								<div className="skeleton h-3.5 w-4/5" />
 								<div className="flex items-center gap-2.5">
-									<div className="skeleton h-7 w-7 rounded-lg" />
+									<div className="skeleton h-7 w-7 rounded" />
 									<div className="skeleton h-3.5 flex-1" />
 								</div>
 								<div className="skeleton h-3.5" style={{ width: `${50 + ((i * 17) % 40)}%` }} />
@@ -346,7 +346,7 @@ export default function LostSalesListPage() {
 					/* The same shape the reorder list uses when it has nothing to
 					   show: a heading, then a sentence explaining why it matters. */
 					<div className="px-5 py-16 text-center">
-						<div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 mx-auto mb-3.5 flex items-center justify-center">
+						<div className="w-14 h-14 rounded bg-brand-50 border border-brand-100 mx-auto mb-3.5 flex items-center justify-center">
 							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#408dfb" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 								<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
 								<path d="M8 13h8M8 17h5" />
@@ -366,9 +366,9 @@ export default function LostSalesListPage() {
 							onClick={() =>
 								records.length === 0 ? navigate('/lost-sales/new') : setSearch('')
 							}
-							className={`mt-4 h-9 px-4 rounded-lg font-bold text-[13px] cursor-pointer ${
+							className={`mt-4 h-9 px-4 rounded font-bold text-[13px] cursor-pointer ${
 								records.length === 0
-									? 'border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-card hover:shadow-card-hover'
+									? 'border border-brand bg-brand hover:bg-brand-600 text-white'
 									: 'border border-line-2 bg-surface text-body-2 hover:border-brand-300 hover:text-brand-600'
 							}`}>
 							{records.length === 0 ? 'Record the first one' : 'Clear search'}
@@ -398,7 +398,7 @@ export default function LostSalesListPage() {
 
 									<div className="flex items-center gap-2.5 min-w-0">
 										<span
-											className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10.5px] font-black flex-shrink-0 ${tintFor(name)}`}>
+											className={`w-7 h-7 rounded flex items-center justify-center text-[10.5px] font-black flex-shrink-0 ${tintFor(name)}`}>
 											{initialsFor(name)}
 										</span>
 										<span className="text-body font-bold truncate">
@@ -438,7 +438,7 @@ export default function LostSalesListPage() {
 										{qtyTotal(r) == null ? (
 											<span className="text-muted-2">—</span>
 										) : (
-											<span className="inline-flex items-center justify-center min-w-[38px] px-2 py-[3px] rounded-md bg-surface-2 border border-line text-body font-black text-[13px]">
+											<span className="inline-flex items-center justify-center min-w-[38px] px-2 py-[3px] rounded bg-surface-2 border border-line text-body font-black text-[13px]">
 												{qtyTotal(r)}
 											</span>
 										)}
@@ -453,7 +453,7 @@ export default function LostSalesListPage() {
 											}
 											title="Edit this record"
 											aria-label={`Edit lost sale for ${r.customer_name || 'customer'}`}
-											className="w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
+											className="w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
 											<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 												<path d="M12 20h9" />
 												<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
@@ -464,7 +464,7 @@ export default function LostSalesListPage() {
 											disabled={deletingId === r.id}
 											title="Delete this record"
 											aria-label={`Delete lost sale for ${r.customer_name || 'customer'}`}
-											className="w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger disabled:opacity-40">
+											className="w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger disabled:opacity-40">
 											<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 												<path d="M3 6h18" />
 												<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />

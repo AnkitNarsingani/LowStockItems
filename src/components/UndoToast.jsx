@@ -31,11 +31,11 @@ export default function UndoToast({ label, duration = 5000, onUndo, onExpire }) 
 	return (
 		<div
 			role="status"
-			className="toast-rise relative overflow-hidden rounded-lg shadow-[0_14px_38px_rgba(10,20,40,.45)] min-w-[340px] max-w-[460px]"
+			className="toast-rise relative overflow-hidden rounded shadow-[0_14px_38px_rgba(10,20,40,.45)] min-w-[340px] max-w-[460px]"
 			style={{ background: '#232830' }}>
 			<div className="flex items-center gap-3 px-4 py-3.5">
 				<span
-					className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+					className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
 					style={{ background: '#1a9d54' }}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
 						<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -55,7 +55,7 @@ export default function UndoToast({ label, duration = 5000, onUndo, onExpire }) 
 
 				<button
 					onClick={onUndo}
-					className="flex-shrink-0 h-8 px-3.5 rounded-lg bg-white/5 text-white font-black text-[12.5px] cursor-pointer hover:bg-white/15 hover:border-white/40 transition-colors"
+					className="flex-shrink-0 h-8 px-3.5 rounded bg-white/5 text-white font-black text-[12.5px] cursor-pointer hover:bg-white/15 hover:border-white/40 transition-colors"
 					style={{ border: '1px solid #3a424c' }}>
 					Undo
 				</button>

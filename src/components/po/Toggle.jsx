@@ -7,7 +7,7 @@ export default function Toggle({ on, onChange, disabled }) {
 			aria-checked={!!on}
 			disabled={disabled}
 			onClick={onChange}
-			className={`w-9 h-5 rounded-[20px] relative flex-shrink-0 border-none p-0 transition-colors duration-200 ease-smooth ${
+			className={`w-9 h-5 rounded-full relative flex-shrink-0 border-none p-0 transition-colors duration-200 ease-smooth ${
 				disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
 			} ${
 				on

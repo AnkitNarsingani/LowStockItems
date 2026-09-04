@@ -116,7 +116,7 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 		<div ref={wrapRef} className="relative max-w-[260px]">
 			<button
 				onClick={() => setOpen((v) => !v)}
-				className={`w-full h-[38px] border rounded-lg bg-surface flex items-center justify-between px-3 text-[13.5px] text-body cursor-pointer transition-all duration-200 ease-smooth ${
+				className={`w-full h-[38px] border rounded bg-surface flex items-center justify-between px-3 text-[13.5px] text-body cursor-pointer transition-all duration-200 ease-smooth ${
 					open
 						? 'border-brand'
 						: invalid
@@ -131,12 +131,12 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 			</button>
 
 			{open && (
-				<div className="absolute top-[42px] left-0 w-[296px] animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop z-40 p-3.5">
+				<div className="absolute top-[42px] left-0 w-[296px] animate-slide-down bg-surface border border-line-2 rounded shadow-pop z-40 p-3.5">
 					<div className="flex items-center justify-between mb-2.5">
 						<button
 							onClick={() => step(-1)}
 							aria-label="Previous month"
-							className="w-7 h-7 rounded-md border-none bg-transparent cursor-pointer text-body-3 flex items-center justify-center hover:bg-brand-50 hover:text-brand-600">
+							className="w-7 h-7 rounded border-none bg-transparent cursor-pointer text-body-3 flex items-center justify-center hover:bg-brand-50 hover:text-brand-600">
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
 								<path d="M15 18l-6-6 6-6" />
 							</svg>
@@ -147,7 +147,7 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 						<button
 							onClick={() => step(1)}
 							aria-label="Next month"
-							className="w-7 h-7 rounded-md border-none bg-transparent cursor-pointer text-body-3 flex items-center justify-center hover:bg-brand-50 hover:text-brand-600">
+							className="w-7 h-7 rounded border-none bg-transparent cursor-pointer text-body-3 flex items-center justify-center hover:bg-brand-50 hover:text-brand-600">
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
 								<path d="M9 18l6-6-6-6" />
 							</svg>
@@ -174,11 +174,11 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 							const disabled = max ? cellYmd > max : false;
 
 							let cls =
-								'w-[34px] h-[34px] rounded-lg border-none bg-transparent text-[13px] font-[inherit] flex items-center justify-center mx-auto transition-all duration-150 ease-smooth ';
+								'w-[34px] h-[34px] rounded border-none bg-transparent text-[13px] font-[inherit] flex items-center justify-center mx-auto transition-all duration-150 ease-smooth ';
 							if (disabled) cls += 'text-[#dfe3e8] cursor-not-allowed';
 							else if (isSel)
 								cls +=
-									'bg-gradient-to-br from-brand-400 to-brand-600 text-white font-black cursor-pointer shadow-card';
+									'bg-brand text-white font-black cursor-pointer';
 							else if (c.other) cls += 'text-[#c4c9d0] cursor-pointer';
 							else if (isToday)
 								cls +=

@@ -95,10 +95,10 @@ export default function AppShell() {
 	return (
 		<div className="min-h-screen flex flex-col text-left">
 			{/* TOP BAR */}
-			<div className="relative h-[52px] bg-surface/85 backdrop-blur-xl border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
+			<div className="relative h-[52px] bg-surface border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0">
 				{/* Wordmark: the flat blue square becomes a lit tile, which is the
 				    cheapest way to give the chrome a focal point. */}
-				<div className="w-[27px] h-[27px] rounded-[8px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[14px] shadow-card select-none">
+				<div className="w-[27px] h-[27px] rounded bg-brand flex items-center justify-center text-white font-black text-[14px] select-none">
 					L
 				</div>
 				<div className="font-black text-[15px] text-heading tracking-[-.01em]">
@@ -109,7 +109,7 @@ export default function AppShell() {
 
 				<button
 					onClick={logout}
-					className="group flex items-center gap-2 h-8 px-3 rounded-md border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer hover:border-danger-border hover:bg-danger-bg hover:text-danger">
+					className="group flex items-center gap-2 h-8 px-3 rounded border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer hover:border-danger-border hover:bg-danger-bg hover:text-danger">
 					<svg
 						width="15"
 						height="15"
@@ -155,20 +155,11 @@ export default function AppShell() {
 							<NavLink
 								key={item.to}
 								to={item.to}
-								className={`group relative flex items-center gap-[11px] w-full text-left rounded-lg px-3 py-[9px] text-[13.5px] font-bold no-underline hover:no-underline transition-all duration-200 ease-smooth ${
+								className={`group flex items-center gap-[11px] w-full text-left rounded px-3 py-[9px] text-[13.5px] font-bold no-underline hover:no-underline transition-colors duration-150 ${
 									active
-										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-card'
-										: 'bg-transparent text-body-2 hover:bg-white hover:text-heading hover:shadow-card'
+										? 'bg-brand text-white'
+										: 'bg-transparent text-body-2 hover:bg-line-3 hover:text-heading'
 								}`}>
-								{/* Active marker on the rail, tucked against the nav's left
-								    edge. It says which section you are in even when the eye
-								    is scanning the labels, not the fills. */}
-								<span
-									className={`absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-brand-600 transition-all duration-300 ease-smooth ${
-										active ? 'h-5 opacity-100' : 'h-0 opacity-0'
-									}`}
-								/>
-
 								<svg
 									width="18"
 									height="18"
@@ -178,8 +169,8 @@ export default function AppShell() {
 									strokeWidth="1.9"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className={`flex-shrink-0 transition-all duration-200 ease-smooth group-hover:scale-110 ${
-										active ? 'text-white' : 'text-muted-2 group-hover:text-brand-600'
+									className={`flex-shrink-0 transition-colors duration-150 ${
+										active ? 'text-white' : 'text-muted-2 group-hover:text-body-2'
 									}`}>
 									{item.icon}
 								</svg>
@@ -209,7 +200,7 @@ export default function AppShell() {
 
 					{/* Foot of the rail. A quiet reminder of what the app is for — and
 					    it stops the sidebar ending in dead space. */}
-					<div className="mx-1 mb-1 rounded-xl border border-line bg-surface p-3">
+					<div className="mx-1 mb-1 rounded border border-line bg-surface p-3">
 						<div className="flex items-center gap-2 mb-1.5">
 							<span className="w-1.5 h-1.5 rounded-full bg-ok" />
 							<span className="text-[10.5px] font-black text-body-3 tracking-[.06em]">

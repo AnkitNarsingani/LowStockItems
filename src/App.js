@@ -121,9 +121,9 @@ function App() {
 	if (!isAuthenticated) {
 		return (
 			<div className="min-h-screen flex items-center justify-center p-6">
-				<div className="w-full max-w-[420px] bg-surface border border-line rounded-2xl shadow-float p-8 animate-fade-up">
+				<div className="w-full max-w-[420px] bg-surface border border-line rounded shadow-float p-8 animate-fade-up">
 					<div className="flex items-center gap-3 mb-7">
-						<div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[20px] shadow-card">
+						<div className="w-11 h-11 rounded bg-brand flex items-center justify-center text-white font-black text-[20px]">
 							L
 						</div>
 						<div>
@@ -153,7 +153,7 @@ function App() {
 
 					<button
 						onClick={handleLogin}
-						className="w-full h-11 rounded-xl border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[14px] cursor-pointer shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
+						className="w-full h-11 rounded border-none bg-brand hover:bg-brand-600 text-white font-black text-[14px] cursor-pointer transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
 						Continue with Zoho
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
 							<path d="M5 12h14M13 6l6 6-6 6" />

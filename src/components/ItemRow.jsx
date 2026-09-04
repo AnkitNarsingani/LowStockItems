@@ -90,7 +90,7 @@ export default function ItemRow({ item, selected, toggleSelect, style }) {
 	return (
 		<div
 			className={`item-row grid px-[18px] py-[13px] border-b border-line-4 text-[13.5px] items-center ${
-				selected ? 'is-selected bg-row-selected' : 'bg-surface'
+				selected ? 'bg-row-selected' : 'bg-surface'
 			}`}
 			style={{ gridTemplateColumns: LOW_TABLE_COLS, ...style }}>
 			<div>
@@ -167,7 +167,7 @@ export default function ItemRow({ item, selected, toggleSelect, style }) {
 				{simpleQty == null ? (
 					<span className="num text-muted-2">—</span>
 				) : (
-					<span className="num inline-flex items-center justify-center min-w-[42px] px-2 py-[3px] rounded-md bg-brand-50 border border-brand-100 text-brand-700 font-black text-[13px]">
+					<span className="num inline-flex items-center justify-center min-w-[42px] px-2 py-[3px] rounded bg-brand-50 border border-brand-100 text-brand-700 font-black text-[13px]">
 						{simpleQty}
 					</span>
 				)}

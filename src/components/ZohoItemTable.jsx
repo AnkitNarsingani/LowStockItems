@@ -268,7 +268,7 @@ export default function ZohoItemsTable() {
 
 				<button
 					onClick={() => openNewPO(false)}
-					className="h-9 px-[15px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
+					className="h-9 px-[15px] rounded border border-brand bg-brand hover:bg-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 transition-all duration-200 ease-smooth">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6">
 						<path d="M12 5v14M5 12h14" strokeLinecap="round" />
 					</svg>
@@ -319,7 +319,7 @@ export default function ZohoItemsTable() {
 			{/* Confirmation handed over by the New PO page */}
 			{poResult && (
 				<div
-					className={`animate-slide-up-in flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded-xl border shadow-card text-[13px] ${
+					className={`animate-slide-up-in flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded border text-[13px] ${
 						poResult.success
 							? 'bg-ok-bg border-ok-border text-ok'
 							: 'bg-danger-bg border-danger-border text-danger'
@@ -359,7 +359,7 @@ export default function ZohoItemsTable() {
 
 			{/* Loading bar */}
 			{loading && (
-				<div className="bg-surface border border-line rounded-xl px-[18px] py-3 mb-4 shadow-card">
+				<div className="bg-surface border border-line rounded px-[18px] py-3 mb-4">
 					<div className="flex justify-between items-center mb-2">
 						<span className="text-[12.5px] text-body-3 font-bold flex items-center gap-2">
 							{/* A dot with a halo pulsing off it — a live signal that costs
@@ -377,7 +377,7 @@ export default function ZohoItemsTable() {
 					<div className="relative w-full h-[4px] bg-line-4 rounded-full overflow-hidden">
 						{loadPct != null ? (
 							<div
-								className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-[width] duration-300 ease-smooth"
+								className="h-full bg-brand rounded-full transition-[width] duration-300 ease-smooth"
 								style={{ width: `${loadPct}%` }}
 							/>
 						) : (
@@ -389,9 +389,9 @@ export default function ZohoItemsTable() {
 
 			{/* Toolbar — sticks under the top bar so search and grouping stay
 			    reachable however far down a long catalogue you are. */}
-			<div className="sticky top-[52px] z-20 -mx-7 px-7 pt-1 pb-3 bg-app/85 backdrop-blur-md">
+			<div className="sticky top-[52px] z-20 -mx-7 px-7 pt-1 pb-3 bg-app">
 				<div className="flex items-center gap-2.5 flex-wrap">
-					<div className="group flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-72 max-w-full shadow-card transition-all duration-200 ease-smooth focus-within:border-brand">
+					<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-all duration-200 ease-smooth focus-within:border-brand">
 						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
 							<circle cx="11" cy="11" r="7" />
 							<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -432,7 +432,7 @@ export default function ZohoItemsTable() {
 					<div className="flex-1" />
 
 					<span className="text-[12px] text-muted font-bold">Group by</span>
-					<div className="flex bg-surface-2 border border-line rounded-lg p-[3px] gap-0.5 shadow-card">
+					<div className="flex bg-surface-2 border border-line rounded p-[3px] gap-0.5">
 						{GROUP_TABS.map((t) => (
 							<button
 								key={t.id}
@@ -440,9 +440,9 @@ export default function ZohoItemsTable() {
 									setGroupBy(t.id);
 									setExpandedGroups(new Set());
 								}}
-								className={`border-none px-3 py-[5px] rounded-md text-[12.5px] font-bold cursor-pointer whitespace-nowrap transition-all duration-200 ease-smooth ${
+								className={`border-none px-3 py-[5px] rounded text-[12.5px] font-bold cursor-pointer whitespace-nowrap transition-all duration-200 ease-smooth ${
 									groupBy === t.id
-										? 'bg-surface text-brand-600 shadow-[0_1px_3px_rgba(28,42,70,.14)]'
+										? 'bg-surface text-brand-600'
 										: 'bg-transparent text-muted hover:text-body-3'
 								}`}>
 								{t.label}
@@ -452,7 +452,7 @@ export default function ZohoItemsTable() {
 
 					<button
 						onClick={toggleExpandAll}
-						className="h-9 px-3 rounded-lg border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer flex items-center gap-1.5 shadow-card hover:border-brand-300 hover:text-brand-600 transition-all duration-200 ease-smooth">
+						className="h-9 px-3 rounded border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer flex items-center gap-1.5 hover:border-brand-300 hover:text-brand-600 transition-all duration-200 ease-smooth">
 						<svg
 							width="13"
 							height="13"
@@ -475,7 +475,7 @@ export default function ZohoItemsTable() {
 			</div>
 
 			{/* Table */}
-			<div className="bg-surface border border-line rounded-xl overflow-hidden shadow-card">
+			<div className="bg-surface border border-line rounded overflow-hidden">
 				<div
 					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em] items-center"
 					style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
@@ -549,7 +549,7 @@ export default function ZohoItemsTable() {
 								{/* The group's own mark. On a list of forty vendors this is
 								    what makes one row findable again on a second pass. */}
 								<span
-									className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0 ${tintFor(group)}`}>
+									className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-black flex-shrink-0 ${tintFor(group)}`}>
 									{initialsFor(group)}
 								</span>
 
@@ -603,7 +603,7 @@ export default function ZohoItemsTable() {
 								key={i}
 								className="grid items-center gap-4 py-[15px] border-b border-line-4 last:border-0"
 								style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
-								<div className="skeleton h-[18px] w-[18px] rounded-[5px]" />
+								<div className="skeleton h-[18px] w-[18px] rounded" />
 								<div className="skeleton h-3.5" style={{ width: `${55 + ((i * 13) % 35)}%` }} />
 								<div className="skeleton h-3.5 w-3/5" />
 								<div className="skeleton h-3.5 w-2/3 justify-self-end" />
@@ -631,7 +631,7 @@ export default function ZohoItemsTable() {
 
 				{!loading && filteredItems.length === 0 && (
 					<div className="px-5 py-16 text-center">
-						<div className="w-14 h-14 rounded-2xl bg-surface-2 border border-line mx-auto mb-3.5 flex items-center justify-center">
+						<div className="w-14 h-14 rounded bg-surface-2 border border-line mx-auto mb-3.5 flex items-center justify-center">
 							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 								<circle cx="11" cy="11" r="7" />
 								<path d="M21 21l-4-4" />
@@ -650,7 +650,7 @@ export default function ZohoItemsTable() {
 						{search && (
 							<button
 								onClick={() => setSearch('')}
-								className="mt-4 h-8 px-3.5 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[12.5px] cursor-pointer hover:border-brand-300 hover:text-brand-600">
+								className="mt-4 h-8 px-3.5 rounded border border-line-2 bg-surface text-body-2 font-bold text-[12.5px] cursor-pointer hover:border-brand-300 hover:text-brand-600">
 								Clear search
 							</button>
 						)}
@@ -664,8 +664,8 @@ export default function ZohoItemsTable() {
 			    is and never scrolls out of reach. */}
 			{selectedCount > 0 && (
 				<div className="fixed bottom-6 left-[236px] right-0 z-30 flex justify-center px-6 pointer-events-none">
-					<div className="toast-rise pointer-events-auto flex items-center gap-3.5 pl-4 pr-3 py-2.5 rounded-2xl bg-heading text-white shadow-float">
-						<span className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
+					<div className="toast-rise pointer-events-auto flex items-center gap-3.5 pl-4 pr-3 py-2.5 rounded bg-heading text-white shadow-float">
+						<span className="w-7 h-7 rounded bg-brand flex items-center justify-center flex-shrink-0">
 							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
 								<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
 							</svg>
@@ -679,12 +679,12 @@ export default function ZohoItemsTable() {
 
 						<button
 							onClick={() => setSelectedItemIds(new Set())}
-							className="h-8 px-3 rounded-lg bg-transparent border border-white/20 text-white/85 font-bold text-[12.5px] cursor-pointer hover:bg-white/10 hover:text-white whitespace-nowrap">
+							className="h-8 px-3 rounded bg-transparent border border-white/20 text-white/85 font-bold text-[12.5px] cursor-pointer hover:bg-white/10 hover:text-white whitespace-nowrap">
 							Clear
 						</button>
 						<button
 							onClick={() => openNewPO(true)}
-							className="h-8 px-4 rounded-lg border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[12.5px] cursor-pointer shadow-card hover:shadow-card-hover flex items-center gap-1.5 whitespace-nowrap">
+							className="h-8 px-4 rounded border-none bg-brand hover:bg-brand-600 text-white font-black text-[12.5px] cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
 							Create purchase order
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
 								<path d="M5 12h14M13 6l6 6-6 6" />

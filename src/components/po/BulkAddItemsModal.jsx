@@ -79,10 +79,10 @@ export default function BulkAddItemsModal({
 
 	return (
 		<div
-			className="fixed inset-0 z-[80] flex items-center justify-center p-[30px] animate-fade-in backdrop-blur-[3px]"
+			className="fixed inset-0 z-[80] flex items-center justify-center p-[30px] animate-fade-in"
 			style={{ background: 'rgba(20,30,50,.42)' }}
 			onClick={(e) => e.target === e.currentTarget && onClose()}>
-			<div className="animate-pop-in w-[1000px] max-w-full h-[620px] max-h-[92vh] bg-surface rounded-2xl shadow-float flex flex-col overflow-hidden">
+			<div className="animate-pop-in w-[1000px] max-w-full h-[620px] max-h-[92vh] bg-surface rounded shadow-float flex flex-col overflow-hidden">
 				{/* Header */}
 				<div className="flex items-center justify-between px-5 py-[15px] bg-surface-2 border-b border-line">
 					<div className="text-[16px] font-black text-heading tracking-[-.01em]">
@@ -90,7 +90,7 @@ export default function BulkAddItemsModal({
 					</div>
 					<button
 						onClick={onClose}
-						className="w-[26px] h-[26px] rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
+						className="w-[26px] h-[26px] rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
 							<path d="M6 6l12 12M18 6L6 18" />
 						</svg>
@@ -101,7 +101,7 @@ export default function BulkAddItemsModal({
 					{/* Left — catalogue */}
 					<div className="w-1/2 border-r border-line-3 flex flex-col min-h-0">
 						<div className="px-4 py-3.5">
-							<div className="flex items-center gap-2 border border-line-2 rounded-lg px-[11px] py-[9px] transition-shadow focus-within:border-brand">
+							<div className="flex items-center gap-2 border border-line-2 rounded px-[11px] py-[9px] transition-shadow focus-within:border-brand">
 								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 									<circle cx="11" cy="11" r="7" />
 									<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -208,7 +208,7 @@ export default function BulkAddItemsModal({
 						<div className="flex-1 overflow-auto px-5">
 							{pickedList.length === 0 ? (
 								<div className="h-full flex flex-col items-center justify-center text-center p-10">
-									<div className="w-12 h-12 rounded-2xl bg-surface-2 border border-line flex items-center justify-center mb-3">
+									<div className="w-12 h-12 rounded bg-surface-2 border border-line flex items-center justify-center mb-3">
 										<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 											<path d="M20 6L9 17l-5-5" />
 										</svg>
@@ -226,7 +226,7 @@ export default function BulkAddItemsModal({
 										<span className="text-[13.5px] font-bold text-body min-w-0 truncate">
 											{item.name}
 										</span>
-										<div className="flex items-center border border-line-2 rounded-lg overflow-hidden h-[34px] flex-shrink-0 shadow-card">
+										<div className="flex items-center border border-line-2 rounded overflow-hidden h-[34px] flex-shrink-0">
 											<button
 												onClick={() =>
 													setQty(item.item_id, picked[item.item_id] - 1)
@@ -264,12 +264,12 @@ export default function BulkAddItemsModal({
 					<button
 						onClick={handleAdd}
 						disabled={pickedList.length === 0}
-						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 ease-smooth">
+						className="h-[38px] px-5 rounded border border-brand bg-brand hover:bg-brand-600 text-white font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 ease-smooth">
 						Add Items
 					</button>
 					<button
 						onClick={onClose}
-						className="h-[38px] px-[18px] rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer hover:bg-surface-2 hover:border-muted-4">
+						className="h-[38px] px-[18px] rounded border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer hover:bg-surface-2 hover:border-muted-4">
 						Cancel
 					</button>
 				</div>

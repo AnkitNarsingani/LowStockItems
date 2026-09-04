@@ -1,37 +1,13 @@
-/* Row-level interaction that Tailwind cannot express cleanly: a hover state
-   that lifts the row above its neighbours and lights an accent on its leading
-   edge. The accent is a pseudo-element so no extra node lands in every row of
-   a two-hundred-row table. */
+/* Row hover, as a plain change of fill — the flat treatment the rest of the
+   app now uses. No leading accent bar, no lift. */
 
 .item-row {
 	position: relative;
-	transition:
-		background-color 0.15s cubic-bezier(0.22, 0.61, 0.36, 1),
-		box-shadow 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-.item-row::before {
-	content: '';
-	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
-	width: 3px;
-	background: #408dfb;
-	transform: scaleY(0);
-	transform-origin: center;
-	transition: transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-.item-row:hover::before,
-.item-row.is-selected::before {
-	transform: scaleY(1);
+	transition: background-color 0.12s ease;
 }
 
 .item-row:hover {
-	background-color: #f7fafe;
-	box-shadow: 0 1px 0 rgba(28, 42, 70, 0.04);
-	z-index: 1;
+	background-color: #f5f8fc;
 }
 
 /* The row's own actions stay out of the way until the row is under the

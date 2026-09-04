@@ -300,13 +300,13 @@ export default function LostSaleFormPage() {
 	return (
 		<div className="fixed top-[52px] left-[236px] right-0 bottom-0 z-[70] bg-surface flex flex-col">
 			{/* Header */}
-			<div className="h-16 flex-shrink-0 bg-surface/90 backdrop-blur-xl border-b border-line flex items-center justify-between gap-3 px-6 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
+			<div className="h-16 flex-shrink-0 bg-surface border-b border-line flex items-center justify-between gap-3 px-6">
 				<div className="flex items-center gap-3 min-w-0">
 					<button
 						onClick={() => navigate('/lost-sales')}
 						title="Back"
 						aria-label="Back"
-						className="group w-[30px] h-[30px] rounded-lg border border-line-2 bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
+						className="group w-[30px] h-[30px] rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
 						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:-translate-x-0.5">
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
@@ -327,7 +327,7 @@ export default function LostSaleFormPage() {
 					onClick={() => navigate('/lost-sales')}
 					title="Close"
 					aria-label="Close"
-					className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:bg-danger-bg hover:text-danger cursor-pointer border-none bg-transparent flex-shrink-0">
+					className="w-8 h-8 rounded flex items-center justify-center text-muted hover:bg-danger-bg hover:text-danger cursor-pointer border-none bg-transparent flex-shrink-0">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
 						<path d="M6 6l12 12M18 6L6 18" />
 					</svg>
@@ -338,7 +338,7 @@ export default function LostSaleFormPage() {
 			<div className="flex-1 overflow-y-auto overflow-x-hidden">
 				{loadingRecord && (
 					<div className="px-8 pt-5">
-						<div className="px-4 py-3 text-[13px] text-body-3 bg-surface-2 border border-line rounded-xl flex items-center gap-2.5">
+						<div className="px-4 py-3 text-[13px] text-body-3 bg-surface-2 border border-line rounded flex items-center gap-2.5">
 							<span className="relative flex w-2 h-2 flex-shrink-0">
 								<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
 								<span className="relative w-2 h-2 rounded-full bg-brand" />
@@ -350,7 +350,7 @@ export default function LostSaleFormPage() {
 
 				{result && (
 					<div className="px-8 pt-5">
-						<div className="animate-slide-up-in flex items-center justify-between px-4 py-3 text-[13px] font-bold rounded-xl border shadow-card bg-danger-bg border-danger-border text-danger">
+						<div className="animate-slide-up-in flex items-center justify-between px-4 py-3 text-[13px] font-bold rounded border bg-danger-bg border-danger-border text-danger">
 							<span>{result.message}</span>
 							<button
 								onClick={() => setResult(null)}
@@ -409,8 +409,8 @@ export default function LostSaleFormPage() {
 				{/* Item table — the PO page's table, column for column, so the two
 				    forms read as one product. */}
 				<div className="px-8 pb-6">
-					<div className="bg-surface border border-line rounded-xl overflow-visible mr-12 shadow-card">
-						<div className="flex items-center justify-between gap-3 px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-xl">
+					<div className="bg-surface border border-line rounded overflow-visible mr-12">
+						<div className="flex items-center justify-between gap-3 px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t">
 							<div className="font-black text-[14px] text-heading">Item Table</div>
 							{errors.items ? (
 								<div className="text-[12px] text-danger">{errors.items}</div>
@@ -506,7 +506,7 @@ export default function LostSaleFormPage() {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));
 										}}
-										className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+										className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
 									/>
 								</div>
 
@@ -517,7 +517,7 @@ export default function LostSaleFormPage() {
 										onClick={() => removeRow(r.key)}
 										title="Remove line"
 										aria-label={`Remove ${r.name || 'this line'}`}
-										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
+										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 											<path d="M3 6h18" />
 											<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
@@ -546,11 +546,11 @@ export default function LostSaleFormPage() {
 			</div>
 
 			{/* Footer */}
-			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3 shadow-[0_-1px_3px_rgba(28,42,70,.05)]">
+			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3">
 				<button
 					onClick={handleSave}
 					disabled={saving}
-					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-card hover:shadow-card-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
+					className="h-[34px] px-4 rounded border border-brand bg-brand hover:bg-brand-600 text-white font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{saving && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
@@ -559,7 +559,7 @@ export default function LostSaleFormPage() {
 				<button
 					onClick={() => navigate('/lost-sales')}
 					disabled={saving}
-					className="h-[34px] px-4 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:bg-surface-2 hover:border-muted-4">
+					className="h-[34px] px-4 rounded border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:bg-surface-2 hover:border-muted-4">
 					Cancel
 				</button>
 

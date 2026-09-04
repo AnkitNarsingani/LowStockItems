@@ -144,7 +144,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						? 'Loading items…'
 						: 'Type or click to select an item.'
 				}
-				className="w-full h-[34px] border border-line-2 rounded-lg px-2.5 text-[13.5px] outline-none text-body bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+				className="w-full h-[34px] border border-line-2 rounded px-2.5 text-[13.5px] outline-none text-body bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
 			/>
 
 			{open && pos && (
@@ -156,7 +156,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						bottom: pos.bottom,
 						width: pos.width,
 					}}
-					className="z-50 animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
+					className="z-50 animate-slide-down bg-surface border border-line-2 rounded shadow-pop overflow-hidden">
 					<div
 						id={listId}
 						ref={listRef}
@@ -190,7 +190,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 										onClick={() => choose(it)}
 										className={`flex justify-between px-[13px] py-[9px] cursor-pointer border-b border-line-4 transition-colors duration-100 ${
 											isActive
-												? 'bg-gradient-to-r from-brand-500 to-brand-600'
+												? 'bg-brand'
 												: 'hover:bg-brand-50'
 										}`}>
 										<div className="min-w-0">

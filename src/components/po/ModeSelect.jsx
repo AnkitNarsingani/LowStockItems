@@ -93,10 +93,10 @@ export default function ModeSelect({
 				onKeyDown={onKeyDown}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				className={`w-full min-h-[38px] px-3 py-2 border rounded-lg bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-all duration-200 ease-smooth ${
+				className={`w-full min-h-[38px] px-3 py-2 border rounded bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-all duration-200 ease-smooth ${
 					open
 						? 'border-brand'
-						: 'border-line-2 shadow-card hover:border-muted-4'
+						: 'border-line-2 hover:border-muted-4'
 				}`}>
 				{multiple ? (
 					chosen.length === 0 ? (
@@ -145,7 +145,7 @@ export default function ModeSelect({
 					ref={listRef}
 					role="listbox"
 					aria-multiselectable={multiple || undefined}
-					className="animate-slide-down absolute top-[calc(100%+5px)] left-0 right-0 bg-surface border border-line-2 rounded-xl shadow-pop z-40 overflow-auto max-h-[320px]">
+					className="animate-slide-down absolute top-[calc(100%+5px)] left-0 right-0 bg-surface border border-line-2 rounded shadow-pop z-40 overflow-auto max-h-[320px]">
 					{options.map((o, i) => {
 						const isActive = i === active;
 						// Solid brand would swallow a ticked checkbox, which is the one
@@ -162,7 +162,7 @@ export default function ModeSelect({
 								onClick={() => pick(o)}
 								className={`px-3.5 py-2.5 cursor-pointer border-b border-line-4 last:border-b-0 flex items-start gap-2.5 transition-colors duration-100 ${
 									dark
-										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white'
+										? 'bg-brand text-white'
 										: isActive
 											? 'bg-brand-50 text-body'
 											: 'text-body'
