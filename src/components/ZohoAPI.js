@@ -655,6 +655,14 @@ export const TRANSACTION_TYPES = {
 		docTitle: 'BILL',
 		contactLabel: 'Bill From',
 		qtyLabel: 'Quantity Purchased',
+		// Document-level custom fields to show alongside the dates and terms.
+		// Matched on the label rather than a cf_ key: the key is derived from
+		// whatever the field was first called in Zoho and does not follow a
+		// later rename, so a key match would quietly go blank one day.
+		customFields: [
+			{ label: 'Bundles', pattern: /number\s*of\s*bundles/i },
+			{ label: 'LR number', pattern: /\blr\s*(number|no\.?)?\b/i },
+		],
 		statuses: [
 			['', 'All'],
 			['Status.Open', 'Open'],

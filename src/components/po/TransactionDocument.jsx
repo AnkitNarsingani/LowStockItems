@@ -3,6 +3,7 @@ import {
 	getTransactionDocument,
 	getContactDetails,
 	getOrganization,
+	customFieldByLabel,
 	TRANSACTION_TYPES,
 } from '../ZohoAPI';
 
@@ -160,12 +161,24 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 				}
 			: null;
 
+	// Custom fields this document type carries — bills declare Number Of
+	// Bundles and LR Number. An empty one is left out rather than shown as a
+	// dash: on a bill entered without it, a labelled blank reads as missing
+	// data rather than a field that simply does not apply.
+	const customMeta = (cfg.customFields || []).flatMap(({ label, pattern }) => {
+		const value = customFieldByLabel(doc, pattern);
+		return value == null || String(value).trim() === ''
+			? []
+			: [[label, String(value)]];
+	});
+
 	const meta = [
 		['Date', fmtDate(doc?.date)],
 		doc?.due_date ? ['Due date', fmtDate(doc.due_date)] : null,
 		doc?.payment_terms_label ? ['Terms', doc.payment_terms_label] : null,
 		doc?.place_of_supply ? ['Place of supply', doc.place_of_supply] : null,
 		doc?.reference_number ? ['Reference', doc.reference_number] : null,
+		...customMeta,
 	].filter(Boolean);
 
 	const cols = 'minmax(0,1fr) 84px 78px 88px 96px';
