@@ -5,6 +5,8 @@ import {
 	isValidDate,
 	normalizeRecord,
 } from './_lost-sales-shared.mjs';
+import { requireUser } from '../shared/auth/session.mjs';
+import { jsonError } from '../shared/http.mjs';
 
 // Months between two YYYY-MM-DD bounds, inclusive, as YYYY-MM prefixes. Lets a
 // bounded query list only the months it needs instead of the whole store.
@@ -27,6 +29,13 @@ function monthsBetween(from, to) {
 
 export default async (req) => {
 	if (req.method === 'OPTIONS') return preflight();
+
+	// Every lost-sale endpoint is business data; a session is required.
+	try {
+		await requireUser(req);
+	} catch (error) {
+		return jsonError(error, req);
+	}
 	if (req.method !== 'GET') {
 		return json(405, { error: 'Method not allowed. Use GET.' });
 	}

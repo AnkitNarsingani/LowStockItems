@@ -3,7 +3,16 @@
   publish = "build"
   functions = "netlify/functions"
 
-# Makes BrowserRouter work on refresh and direct links (/po/new).
+# The API must be matched before the SPA catch-all below, or every /api/*
+# request would be answered with index.html. Netlify evaluates redirects in
+# file order, so this pass-through has to come first.
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+  force = false
+
+# Makes BrowserRouter work on refresh and direct links (/po/new, /settings).
 [[redirects]]
   from = "/*"
   to = "/index.html"
