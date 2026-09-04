@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 
 /**
- * Customer dropdown: avatar initial, name, grey company line, and a pinned
- * "+ New Customer" action. Keyboard driven like the vendor picker — arrows move
- * the highlight, Enter picks, Escape closes.
+ * Customer dropdown: avatar initial, name, grey company line. Keyboard driven
+ * like the vendor picker — arrows move the highlight, Enter picks, Escape
+ * closes.
+ *
+ * A name that matches nothing is still recorded as typed: Enter on an empty
+ * result list commits it. That used to be a pinned action at the foot of the
+ * list as well, which is gone.
  *
  * The magnifier beside the field opens the advanced search.
  */
@@ -204,21 +208,6 @@ export default function CustomerPicker({
 								})
 							)}
 						</div>
-
-						<button
-							onClick={commitFreeText}
-							title={
-								search.trim()
-									? undefined
-									: 'Type a name above, then click here to add it'
-							}
-							className="w-full text-left px-3.5 py-[11px] border-t border-[#eef0f2] flex items-center gap-2 text-link font-bold text-[13px] cursor-pointer bg-surface hover:bg-brand-bg border-x-0 border-b-0">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f7be0" strokeWidth="2">
-								<circle cx="12" cy="12" r="9" />
-								<path d="M12 8v8M8 12h8" strokeLinecap="round" />
-							</svg>
-							{search.trim() ? `Add “${search.trim()}”` : 'New Customer'}
-						</button>
 					</div>
 				)}
 			</div>

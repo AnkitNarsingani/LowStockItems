@@ -198,17 +198,6 @@ export default function DatePicker({ value, onChange, max, invalid }) {
 							);
 						})}
 					</div>
-
-					<div className="flex justify-end mt-2.5 pt-2.5 border-t border-line-4">
-						<button
-							onClick={() => {
-								onChange(todayYmd);
-								setOpen(false);
-							}}
-							className="text-[12px] font-bold text-link bg-transparent border-none cursor-pointer p-0 hover:underline">
-							Today
-						</button>
-					</div>
 				</div>
 			)}
 		</div>
