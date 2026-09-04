@@ -149,6 +149,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 				label: 'Deliver to',
 				name: org?.name,
 				lines: addressLines(org?.address),
+				phone: org?.phone,
 				gstin: org?.gst_no || org?.tax_reg_no,
 			}
 		: doc?.shipping_address
@@ -263,6 +264,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 									label={facing.label}
 									name={facing.name}
 									lines={facing.lines}
+									phone={facing.phone}
 									gstin={facing.gstin}
 								/>
 							)}

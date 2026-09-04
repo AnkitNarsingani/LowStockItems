@@ -770,6 +770,43 @@ export async function getTransactionDocument(type, docId) {
 	return p;
 }
 
+// Our own registered particulars. The organizations list endpoint returns the
+// org's name but not its address, phone or GSTIN, so the letterhead block on
+// every transaction came up blank. These fill that gap; anything Zoho does
+// return still wins, so if those fields are ever populated upstream this stops
+// mattering on its own.
+const ORG_PROFILE = {
+	address: {
+		street_address1: '7-1-527/528, First & Second Floor',
+		street_address2: 'Laxmi Handlooms, Bandimet',
+		city: 'Secunderabad',
+		state: 'Telangana',
+		zip: '500003',
+		country: 'India',
+	},
+	phone: '8885340000',
+	gst_no: '36BRKPN0298R1ZU',
+};
+
+// Zoho returns the address object present but with every value an empty string,
+// so a plain spread would overwrite the fallback with blanks. Only genuinely
+// filled values count as an answer.
+const filledOnly = (obj) =>
+	Object.fromEntries(
+		Object.entries(obj || {}).filter(
+			([, v]) => v != null && String(v).trim() !== '',
+		),
+	);
+
+function withOrgProfile(org) {
+	return {
+		...(org || {}),
+		address: { ...ORG_PROFILE.address, ...filledOnly(org?.address) },
+		phone: org?.phone || ORG_PROFILE.phone,
+		gst_no: org?.gst_no || org?.tax_reg_no || ORG_PROFILE.gst_no,
+	};
+}
+
 /**
  * The organisation's own letterhead — name, address and GSTIN — for the header
  * of the document view. Read through the list endpoint the GST logic already
@@ -784,14 +821,17 @@ export async function getOrganization() {
 			{ headers: authHeaders() },
 		);
 		const data = await res.json();
-		_orgRecord =
+		const org =
 			data.organizations?.find(
 				(o) => String(o.organization_id) === String(ORG_ID),
 			) ||
 			data.organizations?.[0] ||
 			null;
+		_orgRecord = withOrgProfile(org);
 	} catch {
-		_orgRecord = null;
+		// Even with the call down, our own particulars are known — the block is
+		// worth more with them than empty.
+		_orgRecord = withOrgProfile(null);
 	}
 	return _orgRecord;
 }
