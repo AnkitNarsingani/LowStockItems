@@ -121,7 +121,10 @@ module.exports = {
 			animation: {
 				'fade-up': 'fade-up .28s cubic-bezier(.22,.61,.36,1) both',
 				'fade-in': 'fade-in .2s ease both',
-				'pop-in': 'pop-in .18s cubic-bezier(.34,1.56,.64,1) both',
+				// Ease-out, not the spring: the spring's control point sits past 1,
+				// so anything scaling on it overshoots and settles back, which
+				// reads as a wobble rather than as bounce.
+				'pop-in': 'pop-in .18s cubic-bezier(.22,.61,.36,1) both',
 				'slide-down': 'slide-down .16s cubic-bezier(.22,.61,.36,1) both',
 				'slide-up-in': 'slide-up-in .26s cubic-bezier(.22,.61,.36,1) both',
 				shimmer: 'shimmer 1.6s infinite',

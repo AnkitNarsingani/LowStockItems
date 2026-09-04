@@ -169,19 +169,23 @@ input[type='number'] {
 	animation: toastDrain linear forwards;
 }
 
+/* The toast rises once and stops. It used to run on a spring curve whose
+   control point sits past 1, so it overshot its final position and settled
+   back — with a scale on the same keyframes that read as a wobble rather than
+   as bounce. Plain ease-out, translate only. */
 @keyframes toastRise {
 	from {
 		opacity: 0;
-		transform: translateY(10px) scale(0.97);
+		transform: translateY(8px);
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0) scale(1);
+		transform: translateY(0);
 	}
 }
 
 .toast-rise {
-	animation: toastRise 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation: toastRise 0.2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 /* ── Row controls that fade in under the pointer ──────────────────────────
