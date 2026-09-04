@@ -1,4 +1,11 @@
-import { storeFor, json, preflight, keyFor, validate } from './_lost-sales-shared.mjs';
+import {
+	storeFor,
+	json,
+	preflight,
+	keyFor,
+	validate,
+	cleanItems,
+} from './_lost-sales-shared.mjs';
 
 /**
  * Update one lost sale.
@@ -42,16 +49,24 @@ export default async (req) => {
 			return json(404, { error: 'That lost sale no longer exists.' });
 		}
 
+		// Editing an older flat record rewrites it in the current shape rather
+		// than carrying its now-meaningless top-level item fields forward, so a
+		// record migrates the first time anyone touches it.
+		const {
+			item_id: _oldItemId,
+			item_name: _oldItemName,
+			is_free_text: _oldIsFreeText,
+			qty_wanted: _oldQty,
+			note: _oldNote,
+			...carried
+		} = existing;
+
 		const record = {
-			...existing,
+			...carried,
 			date: payload.date,
 			customer_id: payload.customer_id || null,
 			customer_name: payload.customer_name || '',
-			item_id: payload.item_id || null,
-			item_name: payload.item_name || '',
-			is_free_text: !!payload.is_free_text,
-			qty_wanted: Number(payload.qty_wanted),
-			note: payload.note ? String(payload.note) : null,
+			items: cleanItems(payload),
 			updated_at: new Date().toISOString(),
 		};
 

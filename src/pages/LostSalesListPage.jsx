@@ -4,7 +4,31 @@ import { listLostSales, deleteLostSale } from '../lib/lostSales';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-const COLS = '110px minmax(0,1.4fr) minmax(0,1.6fr) 110px minmax(0,1.4fr) 80px';
+const COLS = '110px minmax(0,1.4fr) minmax(0,2.6fr) 110px 80px';
+
+const itemsOf = (r) => (Array.isArray(r?.items) ? r.items : []);
+
+const itemNames = (r) =>
+	itemsOf(r)
+		.map((it) => it.item_name || '—')
+		.join(', ');
+
+// The full list, one per line, for the cell's tooltip — the row itself shows
+// as much as fits on its single line.
+const itemDetail = (r) =>
+	itemsOf(r)
+		.map((it) =>
+			it.qty_wanted == null ? it.item_name : `${it.item_name} × ${it.qty_wanted}`,
+		)
+		.join('\n');
+
+// Quantity is optional per item, so a record can legitimately total nothing.
+// null means "none were given", which reads as — rather than 0.
+const qtyTotal = (r) => {
+	const given = itemsOf(r).filter((it) => it.qty_wanted != null);
+	if (given.length === 0) return null;
+	return given.reduce((s, it) => s + (Number(it.qty_wanted) || 0), 0);
+};
 
 const fmtDate = (d) => {
 	if (!d) return '—';
@@ -57,8 +81,10 @@ export default function LostSalesListPage() {
 		return records.filter(
 			(r) =>
 				(r.customer_name || '').toLowerCase().includes(q) ||
-				(r.item_name || '').toLowerCase().includes(q) ||
-				(r.note || '').toLowerCase().includes(q),
+				// Any item on the record matching brings the whole record back.
+				itemsOf(r).some((it) =>
+					(it.item_name || '').toLowerCase().includes(q),
+				),
 		);
 	}, [records, search]);
 
@@ -73,7 +99,14 @@ export default function LostSalesListPage() {
 	);
 
 	const totalQty = useMemo(
-		() => filtered.reduce((s, r) => s + (Number(r.qty_wanted) || 0), 0),
+		() => filtered.reduce((s, r) => s + (qtyTotal(r) || 0), 0),
+		[filtered],
+	);
+
+	// Records outnumber nothing useful if the item count is invisible: two
+	// records can now cover any number of items.
+	const totalItems = useMemo(
+		() => filtered.reduce((s, r) => s + itemsOf(r).length, 0),
 		[filtered],
 	);
 
@@ -119,15 +152,16 @@ export default function LostSalesListPage() {
 					<input
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
-						placeholder="Search customer, item or note…"
+						placeholder="Search customer or item…"
 						className="border-none outline-none text-[13px] w-full bg-transparent"
 					/>
 				</div>
 				<div className="flex-1" />
 				<span className="text-[12.5px] text-muted num">
 					{filtered.length.toLocaleString('en-IN')} record
-					{filtered.length !== 1 ? 's' : ''} · {totalQty.toLocaleString('en-IN')}{' '}
-					units
+					{filtered.length !== 1 ? 's' : ''} ·{' '}
+					{totalItems.toLocaleString('en-IN')} item
+					{totalItems !== 1 ? 's' : ''} · {totalQty.toLocaleString('en-IN')} units
 				</span>
 			</div>
 
@@ -161,9 +195,8 @@ export default function LostSalesListPage() {
 					style={{ gridTemplateColumns: COLS }}>
 					<div>DATE</div>
 					<div>CUSTOMER</div>
-					<div>ITEM</div>
+					<div>ITEMS</div>
 					<div className="text-right pr-2.5">QTY WANTED</div>
-					<div>NOTE</div>
 					<div className="text-right">ACTIONS</div>
 				</div>
 
@@ -193,19 +226,29 @@ export default function LostSalesListPage() {
 							<div className="text-body truncate">
 								{r.customer_name || '—'}
 							</div>
-							<div className="min-w-0">
-								<span className="text-body truncate">{r.item_name || '—'}</span>
-								{r.is_free_text && (
-									<span className="ml-1.5 text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-1.5 py-px">
-										new
+							{/* Every item the customer asked for, on the record's one row.
+							    The names are truncated to keep the row a single line; the
+							    tooltip carries the full list with quantities. */}
+							<div
+								className="min-w-0 flex items-center gap-1.5"
+								title={itemDetail(r)}>
+								<span className="text-body truncate">
+									{itemNames(r) || '—'}
+								</span>
+								{itemsOf(r).length > 1 ? (
+									<span className="flex-shrink-0 text-[10px] font-bold text-link bg-brand-bg rounded-[20px] px-1.5 py-px num">
+										{itemsOf(r).length}
 									</span>
+								) : (
+									itemsOf(r)[0]?.is_free_text && (
+										<span className="flex-shrink-0 text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-1.5 py-px">
+											new
+										</span>
+									)
 								)}
 							</div>
 							<div className="num text-right pr-2.5 font-bold text-body">
-								{r.qty_wanted}
-							</div>
-							<div className="text-muted-2 truncate" title={r.note || ''}>
-								{r.note || '—'}
+								{qtyTotal(r) ?? <span className="text-muted-2">—</span>}
 							</div>
 							<div className="flex justify-end items-center gap-1.5">
 								<button
@@ -242,7 +285,11 @@ export default function LostSalesListPage() {
 			{pendingDelete && (
 				<ConfirmDialog
 					title="Delete this lost sale?"
-					body={`${pendingDelete.item_name || 'This item'} × ${pendingDelete.qty_wanted} for ${pendingDelete.customer_name || 'an unnamed customer'} on ${fmtDate(pendingDelete.date)}. This cannot be undone, and lost sales cannot be reconstructed from Zoho.`}
+					body={`${itemsOf(pendingDelete).length || 'No'} item${
+						itemsOf(pendingDelete).length === 1 ? '' : 's'
+					} for ${pendingDelete.customer_name || 'an unnamed customer'} on ${fmtDate(
+						pendingDelete.date,
+					)} — ${itemNames(pendingDelete) || 'nothing recorded'}. This cannot be undone, and lost sales cannot be reconstructed from Zoho.`}
 					busy={deletingId === pendingDelete.id}
 					onConfirm={confirmDelete}
 					onCancel={() => setPendingDelete(null)}

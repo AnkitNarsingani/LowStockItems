@@ -80,7 +80,6 @@ export default function LostSaleFormPage() {
 	const [itemsError, setItemsError] = useState(null);
 
 	const [date, setDate] = useState(today());
-	const [note, setNote] = useState('');
 	const [rows, setRows] = useState([blankRow()]);
 
 	const [errors, setErrors] = useState({});
@@ -100,20 +99,21 @@ export default function LostSaleFormPage() {
 			setCustomerId(rec.customer_id || null);
 			setCustomerName(rec.customer_name || '');
 			setDate(rec.date);
-			setNote(rec.note || '');
-			setRows([
-				{
+			// Every item on the record, not just the first — a visit is one record
+			// now, so editing one has to show and rewrite all of its lines.
+			setRows(
+				(rec.items || []).map((it) => ({
 					key: nextKey(),
-					item_id: rec.item_id || null,
-					name: rec.item_name || '',
+					item_id: it.item_id || null,
+					name: it.item_name || '',
 					sku: '',
-					isFreeText: !!rec.is_free_text,
+					isFreeText: !!it.is_free_text,
 					purchase_rate: 0,
 					available_stock: 0,
 					stock_on_hand: 0,
-					qty: String(rec.qty_wanted ?? ''),
-				},
-			]);
+					qty: it.qty_wanted == null ? '' : String(it.qty_wanted),
+				})),
+			);
 		};
 
 		const handed = location.state?.record;
@@ -224,14 +224,12 @@ export default function LostSaleFormPage() {
 			next.date = 'The date cannot be in the future.';
 		}
 
+		// Quantity is optional — that they asked at all is the thing worth
+		// recording. A quantity that was typed still has to be a real one.
 		if (filledRows.length === 0) {
 			next.items = 'Add at least one item.';
-		} else if (!filledRows.some((r) => Number(r.qty) > 0)) {
-			next.items = 'Enter a quantity wanted for at least one item.';
-		} else if (
-			filledRows.some((r) => r.qty !== '' && !(Number(r.qty) > 0))
-		) {
-			next.items = 'Quantities must be greater than zero.';
+		} else if (filledRows.some((r) => r.qty !== '' && !(Number(r.qty) > 0))) {
+			next.items = 'A quantity, where given, must be greater than zero.';
 		}
 
 		setErrors(next);
@@ -243,47 +241,39 @@ export default function LostSaleFormPage() {
 		setResult(null);
 		if (!validate()) return;
 
-		// One record per item, sharing the customer, date and note — the store
-		// keeps a row per item so the reorder engine can total demand by item.
-		const toSave = filledRows.filter((r) => Number(r.qty) > 0);
+		// One record for the whole visit, holding every item asked for. A row
+		// without a quantity is kept: the item was wanted, which is the signal.
+		const items = filledRows.map((r) => ({
+			item_id: r.isFreeText ? null : r.item_id,
+			item_name: r.name,
+			is_free_text: !!r.isFreeText,
+			qty_wanted: r.qty === '' ? null : Number(r.qty),
+		}));
 
 		setSaving(true);
 		try {
+			const who = customerName.trim();
+			const count = `${items.length} item${items.length === 1 ? '' : 's'}`;
 			let message;
 
 			if (isEditing) {
-				// Editing works on the single record that was opened, so only the
-				// first row is written back.
-				const r = toSave[0];
 				await updateLostSale({
 					id: editId,
 					original_date: original?.date ?? date,
 					date,
 					customer_id: customerId,
-					customer_name: customerName.trim(),
-					item_id: r.isFreeText ? null : r.item_id,
-					item_name: r.name,
-					is_free_text: !!r.isFreeText,
-					qty_wanted: Number(r.qty),
-					note: note.trim() || null,
+					customer_name: who,
+					items,
 				});
-				message = `Updated the lost sale for ${customerName.trim()}.`;
+				message = `Updated the lost sale for ${who} (${count}).`;
 			} else {
-				for (const r of toSave) {
-					await createLostSale({
-						date,
-						customer_id: customerId,
-						customer_name: customerName.trim(),
-						item_id: r.isFreeText ? null : r.item_id,
-						item_name: r.name,
-						is_free_text: !!r.isFreeText,
-						qty_wanted: Number(r.qty),
-						note: note.trim() || null,
-					});
-				}
-				message = `Recorded ${toSave.length} lost sale${
-					toSave.length === 1 ? '' : 's'
-				} for ${customerName.trim()}.`;
+				await createLostSale({
+					date,
+					customer_id: customerId,
+					customer_name: who,
+					items,
+				});
+				message = `Recorded a lost sale for ${who} (${count}).`;
 			}
 
 			navigate('/lost-sales', {
@@ -386,7 +376,7 @@ export default function LostSaleFormPage() {
 					</Field>
 				</div>
 
-				{/* Date + note */}
+				{/* Date */}
 				<div className="px-8 py-6 flex flex-col gap-5">
 					<Field label="Date" required error={errors.date}>
 						<DatePicker
@@ -397,16 +387,6 @@ export default function LostSaleFormPage() {
 								setDate(d);
 								setErrors((x) => ({ ...x, date: null }));
 							}}
-						/>
-					</Field>
-
-					<Field label="Note" align="start">
-						<input
-							value={note}
-							onChange={(e) => setNote(e.target.value)}
-							placeholder="e.g. wanted 3, offered a substitute"
-							maxLength={280}
-							className="w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-brand"
 						/>
 					</Field>
 				</div>
@@ -430,7 +410,10 @@ export default function LostSaleFormPage() {
 								ITEM DETAILS
 							</div>
 							<div className="px-3.5 py-2.5 text-right min-w-0">
-								QTY WANTED
+								QTY WANTED{' '}
+								<span className="font-normal normal-case tracking-normal text-muted-2">
+									(optional)
+								</span>
 							</div>
 						</div>
 
@@ -481,6 +464,7 @@ export default function LostSaleFormPage() {
 										type="number"
 										min="1"
 										value={r.qty}
+										placeholder="—"
 										onChange={(e) => {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));

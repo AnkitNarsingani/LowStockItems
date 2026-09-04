@@ -89,12 +89,21 @@ export async function startRun() {
 		const lostByItem = new Map();
 		try {
 			const lost = await listLostSales();
+			// A record covers a whole visit, so the items it holds are what carry
+			// the per-item signal. `count` stays a count of item lines — the number
+			// of times this item was asked for and could not be supplied — rather
+			// than of visits, which is what the engine's wording means by it.
 			for (const r of lost) {
-				if (!r.item_id) continue;
-				const cur = lostByItem.get(r.item_id) || { units: 0, count: 0 };
-				cur.units += Number(r.qty_wanted) || 0;
-				cur.count += 1;
-				lostByItem.set(r.item_id, cur);
+				for (const it of r.items || []) {
+					if (!it.item_id) continue;
+					const cur = lostByItem.get(it.item_id) || { units: 0, count: 0 };
+					// Quantity is optional. A line without one still counts as a lost
+					// sale but adds no units, so an unknown quantity never invents
+					// demand — it only ever makes the correction more conservative.
+					cur.units += Number(it.qty_wanted) || 0;
+					cur.count += 1;
+					lostByItem.set(it.item_id, cur);
+				}
 			}
 		} catch {
 			// Leave the map empty.

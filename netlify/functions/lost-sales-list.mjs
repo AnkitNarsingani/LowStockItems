@@ -1,4 +1,10 @@
-import { storeFor, json, preflight, isValidDate } from './_lost-sales-shared.mjs';
+import {
+	storeFor,
+	json,
+	preflight,
+	isValidDate,
+	normalizeRecord,
+} from './_lost-sales-shared.mjs';
 
 // Months between two YYYY-MM-DD bounds, inclusive, as YYYY-MM prefixes. Lets a
 // bounded query list only the months it needs instead of the whole store.
@@ -54,11 +60,14 @@ export default async (req) => {
 
 		const records = [];
 		for (const key of keys) {
-			const rec = await store.get(key, { type: 'json' });
-			if (!rec) continue;
+			const raw = await store.get(key, { type: 'json' });
+			if (!raw) continue;
+			// Records predating the one-record-per-visit shape are lifted here, so
+			// every caller sees an items array whatever was written.
+			const rec = normalizeRecord(raw);
 			if (from && rec.date < from) continue;
 			if (to && rec.date > to) continue;
-			if (itemId && rec.item_id !== itemId) continue;
+			if (itemId && !rec.items.some((it) => it.item_id === itemId)) continue;
 			records.push(rec);
 		}
 

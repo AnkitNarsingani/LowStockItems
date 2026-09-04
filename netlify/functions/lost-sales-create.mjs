@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { storeFor, json, preflight, keyFor, validate } from './_lost-sales-shared.mjs';
+import {
+	storeFor,
+	json,
+	preflight,
+	keyFor,
+	validate,
+	cleanItems,
+} from './_lost-sales-shared.mjs';
 
 export default async (req) => {
 	if (req.method === 'OPTIONS') return preflight();
@@ -20,17 +27,14 @@ export default async (req) => {
 	}
 
 	const id = randomUUID();
+	// One record per visit, holding every item that was asked for.
 	const record = {
 		id,
 		created_at: new Date().toISOString(),
 		date: payload.date,
 		customer_id: payload.customer_id || null,
 		customer_name: payload.customer_name || '',
-		item_id: payload.item_id || null,
-		item_name: payload.item_name || '',
-		is_free_text: !!payload.is_free_text,
-		qty_wanted: Number(payload.qty_wanted),
-		note: payload.note ? String(payload.note) : null,
+		items: cleanItems(payload),
 	};
 
 	try {
