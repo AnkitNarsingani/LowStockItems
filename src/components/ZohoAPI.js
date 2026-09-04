@@ -911,6 +911,17 @@ function buildPOBody(
 	const supplyState = vendor.place_of_contact || vendor.source_of_supply;
 	if (supplyState) body.source_of_supply = supplyState;
 
+	// Payment terms follow the vendor, as they do when a PO is raised in Zoho's
+	// own UI. 0 is a real value — "Due on receipt" — so test for null rather
+	// than truthiness, or those vendors would silently fall back to the org
+	// default. The label is sent alongside because Zoho stores it as free text
+	// and will otherwise re-derive a generic one ("Net 45") from the number.
+	if (vendor.payment_terms != null) {
+		body.payment_terms = Number(vendor.payment_terms);
+		if (vendor.payment_terms_label)
+			body.payment_terms_label = vendor.payment_terms_label;
+	}
+
 	// Discount — percentage sent as "X%", flat amount sent as a number
 	if (discount > 0) {
 		body.discount = discountType === '%' ? `${discount}%` : discount;
