@@ -3,6 +3,7 @@ import React, {
 	useState,
 	useCallback,
 	useMemo,
+	useRef,
 	useSyncExternalStore,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -34,6 +35,33 @@ const GROUP_TABS = [
 	{ id: GROUP_BY_OPTIONS.MANUFACTURER, label: 'Manufacturer' },
 ];
 
+// Group avatars are tinted from the group's own name, so the same vendor keeps
+// the same colour on every visit and the eye can track it down a long list.
+// Hues are sampled from the brand's neighbourhood rather than the full wheel —
+// a rainbow of vendor chips would fight the one blue this app is built on.
+const AVATAR_TINTS = [
+	'bg-brand-100 text-brand-700',
+	'bg-[#e6f0f8] text-[#1f6088]',
+	'bg-[#e9ecf7] text-[#414c8a]',
+	'bg-[#e4f1ee] text-[#1d6b5c]',
+	'bg-[#f0ecf8] text-[#5a4a8c]',
+	'bg-[#e8f1e6] text-[#3f6b34]',
+];
+
+const tintFor = (name) => {
+	let h = 0;
+	for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+	return AVATAR_TINTS[h % AVATAR_TINTS.length];
+};
+
+// Two letters where the name gives two words, otherwise the first two letters.
+const initialsFor = (name) => {
+	const words = name.trim().split(/\s+/).filter(Boolean);
+	if (words.length === 0) return '?';
+	if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+	return (words[0][0] + words[1][0]).toUpperCase();
+};
+
 export default function ZohoItemsTable() {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -58,6 +86,22 @@ export default function ZohoItemsTable() {
 	const [expandedGroups, setExpandedGroups] = useState(new Set());
 
 	const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+
+	const searchRef = useRef(null);
+
+	// "/" jumps to the search box, the convention every list-heavy tool shares.
+	// Ignored while a field already has focus, so typing a slash still types one.
+	useEffect(() => {
+		const onKey = (e) => {
+			if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+			const tag = document.activeElement?.tagName;
+			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+			e.preventDefault();
+			searchRef.current?.focus();
+		};
+		document.addEventListener('keydown', onKey);
+		return () => document.removeEventListener('keydown', onKey);
+	}, []);
 
 	const getGroupKey = useCallback(
 		(item) => {
@@ -94,7 +138,10 @@ export default function ZohoItemsTable() {
 
 	const metrics = useMemo(() => {
 		const groups = new Set(items.map((i) => getGroupKey(i))).size;
-		return { total: items.length, groups };
+		// Out of stock is the subset that cannot wait for the next cycle, so it
+		// earns a figure of its own rather than hiding inside the SKU count.
+		const out = items.filter((i) => Number(i.stock_on_hand) <= 0).length;
+		return { total: items.length, groups, out };
 	}, [items, getGroupKey]);
 
 	const toggleGroup = useCallback((group) => {
@@ -197,96 +244,95 @@ export default function ZohoItemsTable() {
 				? 'Manufacturers'
 				: 'Vendors';
 
+	// The catalogue arrives in pages, so the share already in is real progress
+	// and worth drawing as a filling bar rather than a pacing one.
+	const loadPct =
+		totalCount > 0 ? Math.min(100, (loadedCount / totalCount) * 100) : null;
+
+	const selectedCount = selectedItemIds.size;
+
 	return (
-		<div className="px-7 pt-[22px] pb-[70px]">
+		<div className="px-7 pt-6 pb-[110px] max-w-[1600px]">
 			{/* Title row */}
-			<div className="flex items-center gap-3 mb-1 flex-wrap">
-				<div className="text-[20px] font-bold text-heading">
-					Low stock items
+			<div className="flex items-end gap-3 mb-5 flex-wrap">
+				<div className="min-w-0">
+					<h1 className="text-[23px] font-black text-heading tracking-[-.02em] m-0">
+						Low stock items
+					</h1>
+					<p className="text-[13px] text-muted-2 m-0 mt-1">
+						Everything at or below its reorder point, grouped by{' '}
+						{groupBy === 'vendor' ? 'vendor' : groupBy}.
+					</p>
 				</div>
 				<div className="flex-1" />
-
-				{/* One button, not two: with rows selected the useful action is a PO
-				    for that selection, so it takes the New button's place. */}
-				{selectedItemIds.size > 0 ? (
-					<button
-						onClick={() => openNewPO(true)}
-						className="h-9 px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer flex items-center gap-[7px]">
-						Create PO
-						<span className="bg-white/25 rounded-[20px] px-2 py-px text-[12px] num">
-							{selectedItemIds.size}
-						</span>
-					</button>
-				) : (
-					<button
-						onClick={() => openNewPO(false)}
-						className="h-9 px-[15px] rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5">
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4">
-							<path d="M12 5v14M5 12h14" strokeLinecap="round" />
-						</svg>
-						New
-					</button>
-				)}
-			</div>
-
-			{/* Toolbar */}
-			<div className="flex items-center gap-2.5 mt-3.5 mb-3.5 flex-wrap">
-				<div className="flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-60 max-w-full">
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
-						<circle cx="11" cy="11" r="7" />
-						<path d="M21 21l-4-4" strokeLinecap="round" />
-					</svg>
-					<input
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						placeholder="Search items…"
-						className="border-none outline-none text-[13px] w-full bg-transparent"
-					/>
-				</div>
-
-				<div className="flex-1" />
-
-				<span className="text-[12px] text-muted font-bold">Group by</span>
-				<div className="flex bg-surface-2 border border-line rounded-lg p-[3px] gap-0.5">
-					{GROUP_TABS.map((t) => (
-						<button
-							key={t.id}
-							onClick={() => {
-								setGroupBy(t.id);
-								setExpandedGroups(new Set());
-							}}
-							className={`border-none px-3 py-[5px] rounded text-[12.5px] font-bold cursor-pointer whitespace-nowrap ${
-								groupBy === t.id
-									? 'bg-surface text-link shadow-[0_1px_2px_rgba(20,30,50,.12)]'
-									: 'bg-transparent text-muted hover:text-body-3'
-							}`}>
-							{t.label}
-						</button>
-					))}
-				</div>
 
 				<button
-					onClick={toggleExpandAll}
-					className="h-9 px-[13px] rounded-lg border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer w-20">
-					{allCollapsed ? 'Expand' : 'Collapse'}
+					onClick={() => openNewPO(false)}
+					className="h-9 px-[15px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer flex items-center gap-1.5 shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6">
+						<path d="M12 5v14M5 12h14" strokeLinecap="round" />
+					</svg>
+					New purchase order
 				</button>
+			</div>
+
+			{/* Metric cards */}
+			<div className="flex gap-4 mb-4 flex-wrap">
+				<MetricCard
+					label="Low stock SKUs"
+					value={metrics.total}
+					hint="Below their reorder point"
+					icon={
+						<>
+							<path d="M3 7l9-4 9 4-9 4-9-4z" />
+							<path d="M3 7v10l9 4 9-4V7" />
+						</>
+					}
+				/>
+				<MetricCard
+					label="Out of stock"
+					value={metrics.out}
+					tone={metrics.out > 0 ? 'warn' : 'neutral'}
+					hint="Nothing on the shelf at all"
+					icon={
+						<>
+							<circle cx="12" cy="12" r="9" />
+							<path d="M12 8v5M12 16h.01" />
+						</>
+					}
+				/>
+				<MetricCard
+					label={groupMetricLabel}
+					value={metrics.groups}
+					accent
+					hint="To raise orders against"
+					icon={
+						<>
+							<path d="M3 21h18" />
+							<path d="M5 21V7l7-4 7 4v14" />
+							<path d="M10 21v-6h4v6" />
+						</>
+					}
+				/>
 			</div>
 
 			{/* Confirmation handed over by the New PO page */}
 			{poResult && (
 				<div
-					className={`flex items-center justify-between gap-3 px-4 py-2.5 mb-3.5 rounded-[10px] border text-[13px] ${
+					className={`animate-slide-up-in flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded-xl border shadow-card text-[13px] ${
 						poResult.success
-							? 'bg-green-50 border-green-200 text-ok'
-							: 'bg-red-50 border-danger-border text-danger'
+							? 'bg-ok-bg border-ok-border text-ok'
+							: 'bg-danger-bg border-danger-border text-danger'
 					}`}>
-					<span className="flex items-center gap-2 min-w-0">
+					<span className="flex items-center gap-2.5 min-w-0">
 						{poResult.success && (
-							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-shrink-0">
-								<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-							</svg>
+							<span className="w-6 h-6 rounded-full bg-ok flex items-center justify-center flex-shrink-0">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2">
+									<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+								</svg>
+							</span>
 						)}
-						<span className="truncate">{poResult.message}</span>
+						<span className="truncate font-bold">{poResult.message}</span>
 					</span>
 					<span className="flex items-center gap-3 flex-shrink-0">
 						{poResult.poId && (
@@ -297,7 +343,7 @@ export default function ZohoItemsTable() {
 										'_blank',
 									)
 								}
-								className="font-bold underline bg-transparent border-none cursor-pointer text-current p-0">
+								className="font-bold underline underline-offset-2 bg-transparent border-none cursor-pointer text-current p-0">
 								View in Zoho
 							</button>
 						)}
@@ -311,35 +357,127 @@ export default function ZohoItemsTable() {
 				</div>
 			)}
 
-			{/* Metric cards */}
-			<div className="flex gap-4 mb-[18px]">
-				<MetricCard label="Total SKUs" value={metrics.total} />
-				<MetricCard label={groupMetricLabel} value={metrics.groups} accent />
-			</div>
-
 			{/* Loading bar */}
 			{loading && (
-				<div className="bg-surface border border-line rounded-[10px] px-[18px] py-3 mb-3">
-					<div className="flex justify-between items-center mb-1.5">
-						<span className="text-[12.5px] text-muted">Loading inventory…</span>
-						<span className="text-[12.5px] font-bold text-body-3 num">
-							{loadedCount.toLocaleString()} / {totalCount.toLocaleString()}{' '}
-							items loaded
+				<div className="bg-surface border border-line rounded-xl px-[18px] py-3 mb-4 shadow-card">
+					<div className="flex justify-between items-center mb-2">
+						<span className="text-[12.5px] text-body-3 font-bold flex items-center gap-2">
+							{/* A dot with a halo pulsing off it — a live signal that costs
+							    nothing and reads instantly. */}
+							<span className="relative flex w-2 h-2">
+								<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
+								<span className="relative w-2 h-2 rounded-full bg-brand" />
+							</span>
+							Loading inventory from Zoho…
+						</span>
+						<span className="text-[12.5px] font-black text-body-3 num">
+							{loadedCount.toLocaleString()} / {totalCount.toLocaleString()}
 						</span>
 					</div>
-					<div className="relative w-full h-[3px] bg-line-4 rounded-full overflow-hidden">
-						<div
-							className="progress-bounce absolute h-full bg-brand rounded-full"
-							style={{ width: '35%' }}
-						/>
+					<div className="relative w-full h-[4px] bg-line-4 rounded-full overflow-hidden">
+						{loadPct != null ? (
+							<div
+								className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-[width] duration-300 ease-smooth"
+								style={{ width: `${loadPct}%` }}
+							/>
+						) : (
+							<div className="progress-bounce absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-brand to-transparent" />
+						)}
 					</div>
 				</div>
 			)}
 
+			{/* Toolbar — sticks under the top bar so search and grouping stay
+			    reachable however far down a long catalogue you are. */}
+			<div className="sticky top-[52px] z-20 -mx-7 px-7 pt-1 pb-3 bg-app/85 backdrop-blur-md">
+				<div className="flex items-center gap-2.5 flex-wrap">
+					<div className="group flex items-center gap-2 border border-line-2 rounded-lg bg-surface px-[11px] h-9 w-72 max-w-full shadow-card transition-all duration-200 ease-smooth focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
+							<circle cx="11" cy="11" r="7" />
+							<path d="M21 21l-4-4" strokeLinecap="round" />
+						</svg>
+						<input
+							ref={searchRef}
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							placeholder="Search name or SKU…"
+							className="border-none outline-none text-[13px] w-full bg-transparent"
+						/>
+						{search ? (
+							<button
+								onClick={() => {
+									setSearch('');
+									searchRef.current?.focus();
+								}}
+								aria-label="Clear search"
+								className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-line-3 text-muted flex items-center justify-center text-[11px] border-none cursor-pointer hover:bg-muted-4 hover:text-body">
+								✕
+							</button>
+						) : (
+							<kbd className="flex-shrink-0 text-[10px] font-bold text-muted-3 border border-line-2 rounded px-1.5 py-px bg-surface-2 select-none">
+								/
+							</kbd>
+						)}
+					</div>
+
+					{search && (
+						<span className="text-[12.5px] text-muted num animate-fade-in">
+							<strong className="text-body-2 font-black">
+								{filteredItems.length.toLocaleString('en-IN')}
+							</strong>{' '}
+							of {items.length.toLocaleString('en-IN')}
+						</span>
+					)}
+
+					<div className="flex-1" />
+
+					<span className="text-[12px] text-muted font-bold">Group by</span>
+					<div className="flex bg-surface-2 border border-line rounded-lg p-[3px] gap-0.5 shadow-card">
+						{GROUP_TABS.map((t) => (
+							<button
+								key={t.id}
+								onClick={() => {
+									setGroupBy(t.id);
+									setExpandedGroups(new Set());
+								}}
+								className={`border-none px-3 py-[5px] rounded-md text-[12.5px] font-bold cursor-pointer whitespace-nowrap transition-all duration-200 ease-smooth ${
+									groupBy === t.id
+										? 'bg-surface text-brand-600 shadow-[0_1px_3px_rgba(28,42,70,.14)]'
+										: 'bg-transparent text-muted hover:text-body-3'
+								}`}>
+								{t.label}
+							</button>
+						))}
+					</div>
+
+					<button
+						onClick={toggleExpandAll}
+						className="h-9 px-3 rounded-lg border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer flex items-center gap-1.5 shadow-card hover:border-brand-300 hover:text-brand-600 transition-all duration-200 ease-smooth">
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							className="transition-transform duration-300 ease-smooth"
+							style={{ transform: allCollapsed ? 'none' : 'rotate(180deg)' }}>
+							<path d="M7 13l5 5 5-5" />
+							<path d="M7 6l5 5 5-5" />
+						</svg>
+						<span className="w-[52px] text-left">
+							{allCollapsed ? 'Expand' : 'Collapse'}
+						</span>
+					</button>
+				</div>
+			</div>
+
 			{/* Table */}
-			<div className="bg-surface border border-line rounded-[10px] overflow-hidden">
+			<div className="bg-surface border border-line rounded-xl overflow-hidden shadow-card">
 				<div
-					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em] items-center"
+					className="grid px-[18px] py-3 bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em] items-center"
 					style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
 					<div>
 						<Checkbox
@@ -355,8 +493,8 @@ export default function ZohoItemsTable() {
 					<div className="text-right pr-2.5">RATE</div>
 					<div className="text-right pr-2.5">STOCK ON HAND</div>
 					<div className="text-right pr-2.5">REORDER LEVEL</div>
-					<div className="text-right pr-2.5">MAXIMUM CAPACITY</div>
-					<div>USAGE UNIT</div>
+					<div className="text-right pr-2.5">MAX CAPACITY</div>
+					<div>UNIT</div>
 					<div className="text-right pr-2.5">SIMPLE QTY</div>
 				</div>
 
@@ -367,11 +505,22 @@ export default function ZohoItemsTable() {
 						groupItems.every((i) => selectedItemIds.has(i.item_id));
 					const groupSome =
 						!groupAll && groupItems.some((i) => selectedItemIds.has(i.item_id));
+					const outCount = groupItems.filter(
+						(i) => Number(i.stock_on_hand) <= 0,
+					).length;
+					const pickedHere = groupItems.filter((i) =>
+						selectedItemIds.has(i.item_id),
+					).length;
+
 					return (
 						<React.Fragment key={group}>
 							<div
 								onClick={() => toggleGroup(group)}
-								className="flex items-center gap-[9px] px-[18px] py-2.5 bg-surface-2 border-t border-b border-line-3 cursor-pointer select-none hover:bg-[#eef1f4]">
+								className={`flex items-center gap-[9px] px-[18px] py-2.5 border-t border-b border-line-3 cursor-pointer select-none transition-colors duration-150 ${
+									expanded
+										? 'bg-brand-50 border-brand-100'
+										: 'bg-surface-2 hover:bg-[#edf1f6]'
+								}`}>
 								{/* Sits at the same offset as the row checkboxes below it. */}
 								<Checkbox
 									checked={groupAll}
@@ -384,71 +533,166 @@ export default function ZohoItemsTable() {
 									height="12"
 									viewBox="0 0 12 12"
 									fill="none"
-									className="flex-shrink-0 transition-transform duration-150"
+									className="flex-shrink-0 transition-transform duration-200 ease-smooth"
 									style={{
 										transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
 									}}>
 									<path
 										d="M2 4l4 4 4-4"
-										stroke="#8b919a"
-										strokeWidth="1.6"
+										stroke={expanded ? '#2f7be0' : '#8b919a'}
+										strokeWidth="2"
 										strokeLinecap="round"
 										strokeLinejoin="round"
 									/>
 								</svg>
-								<span className="text-[12.5px] font-bold text-body-2">
+
+								{/* The group's own mark. On a list of forty vendors this is
+								    what makes one row findable again on a second pass. */}
+								<span
+									className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0 ${tintFor(group)}`}>
+									{initialsFor(group)}
+								</span>
+
+								<span className="text-[13px] font-black text-heading truncate">
 									{group}
 								</span>
-								<span className="text-[12px] text-muted-2">
+								<span className="text-[12px] text-muted-2 flex-shrink-0 num">
 									{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}
 								</span>
+
 								<div className="flex-1" />
-								<span className="text-[11px] font-bold text-warn bg-warn-bg border border-warn-border rounded-[20px] px-[9px] py-px">
+
+								{pickedHere > 0 && (
+									<span className="num text-[11px] font-black text-brand-700 bg-brand-100 rounded-full px-2.5 py-0.5 animate-pop-in flex-shrink-0">
+										{pickedHere} picked
+									</span>
+								)}
+								{outCount > 0 && (
+									<span className="num text-[11px] font-black text-danger bg-danger-bg border border-danger-border rounded-full px-2.5 py-px flex-shrink-0">
+										{outCount} out
+									</span>
+								)}
+								<span className="num text-[11px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-2.5 py-px flex-shrink-0">
 									{groupItems.length} low
 								</span>
 							</div>
 
-							{expanded &&
-								groupItems.map((item) => (
-									<ItemRow
-										key={item.item_id}
-										item={item}
-										selected={selectedItemIds.has(item.item_id)}
-										toggleSelect={toggleSelect}
-									/>
-								))}
+							{expanded && (
+								<div className="stagger">
+									{groupItems.map((item, i) => (
+										<ItemRow
+											key={item.item_id}
+											item={item}
+											selected={selectedItemIds.has(item.item_id)}
+											toggleSelect={toggleSelect}
+											// Cap the cascade: past twenty rows the stagger stops
+											// being a flourish and starts being a wait.
+											style={{ '--i': Math.min(i, 20) }}
+										/>
+									))}
+								</div>
+							)}
 						</React.Fragment>
 					);
 				})}
 
 				{loading && items.length === 0 && (
-					<div className="px-[18px] py-3">
-						{[80, 65, 72, 55, 88].map((w, i) => (
+					<div className="px-[18px] py-2">
+						{Array.from({ length: 6 }, (_, i) => (
 							<div
 								key={i}
-								className="h-3 rounded bg-line-4 animate-pulse my-3"
-								style={{ width: `${w}%` }}
-							/>
+								className="grid items-center gap-4 py-[15px] border-b border-line-4 last:border-0"
+								style={{ gridTemplateColumns: LOW_TABLE_COLS }}>
+								<div className="skeleton h-[18px] w-[18px] rounded-[5px]" />
+								<div className="skeleton h-3.5" style={{ width: `${55 + ((i * 13) % 35)}%` }} />
+								<div className="skeleton h-3.5 w-3/5" />
+								<div className="skeleton h-3.5 w-2/3 justify-self-end" />
+								<div className="skeleton h-3.5 w-1/2 justify-self-end" />
+								<div className="skeleton h-3.5 w-1/2 justify-self-end" />
+								<div className="skeleton h-3.5 w-1/2 justify-self-end" />
+								<div className="skeleton h-3.5 w-2/3" />
+								<div className="skeleton h-3.5 w-1/2 justify-self-end" />
+							</div>
 						))}
 					</div>
 				)}
 
 				{loading && items.length > 0 && (
-					<div className="px-[18px] py-2.5 text-center text-[12.5px] text-muted-2 border-t border-dashed border-line-3">
-						<span className="inline-flex items-center gap-1.5">
-							<span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+					<div className="px-[18px] py-3 text-center text-[12.5px] text-muted-2 border-t border-dashed border-line-3 bg-surface-3">
+						<span className="inline-flex items-center gap-2">
+							<span className="relative flex w-2 h-2">
+								<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
+								<span className="relative w-2 h-2 rounded-full bg-brand" />
+							</span>
 							Fetching more items…
 						</span>
 					</div>
 				)}
 
 				{!loading && filteredItems.length === 0 && (
-					<div className="p-10 text-center text-muted-2 text-[13px]">
-						No items match your search.
+					<div className="px-5 py-16 text-center">
+						<div className="w-14 h-14 rounded-2xl bg-surface-2 border border-line mx-auto mb-3.5 flex items-center justify-center">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+								<circle cx="11" cy="11" r="7" />
+								<path d="M21 21l-4-4" />
+							</svg>
+						</div>
+						<div className="text-[14.5px] font-black text-heading mb-1">
+							{items.length === 0
+								? 'Nothing is running low'
+								: 'Nothing matches that search'}
+						</div>
+						<p className="text-[13px] text-muted-2 m-0 max-w-[460px] mx-auto leading-relaxed">
+							{items.length === 0
+								? 'Every item is above its reorder point. This list fills itself from Zoho as stock falls.'
+								: 'Try a different name or SKU, or clear the search to see every low item.'}
+						</p>
+						{search && (
+							<button
+								onClick={() => setSearch('')}
+								className="mt-4 h-8 px-3.5 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[12.5px] cursor-pointer hover:border-brand-300 hover:text-brand-600">
+								Clear search
+							</button>
+						)}
 					</div>
 				)}
 			</div>
+
+			{/* Selection bar — rises from the foot of the page while rows are
+			    picked. The action now sits with the selection instead of replacing
+			    a button at the far top of the page, so it is where the eye already
+			    is and never scrolls out of reach. */}
+			{selectedCount > 0 && (
+				<div className="fixed bottom-6 left-[236px] right-0 z-30 flex justify-center px-6 pointer-events-none">
+					<div className="toast-rise pointer-events-auto flex items-center gap-3.5 pl-4 pr-3 py-2.5 rounded-2xl bg-heading text-white shadow-float">
+						<span className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+								<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+							</svg>
+						</span>
+						<span className="text-[13.5px] font-bold whitespace-nowrap">
+							<span className="num font-black">{selectedCount}</span> item
+							{selectedCount !== 1 ? 's' : ''} selected
+						</span>
+
+						<span className="w-px h-6 bg-white/15" />
+
+						<button
+							onClick={() => setSelectedItemIds(new Set())}
+							className="h-8 px-3 rounded-lg bg-transparent border border-white/20 text-white/85 font-bold text-[12.5px] cursor-pointer hover:bg-white/10 hover:text-white whitespace-nowrap">
+							Clear
+						</button>
+						<button
+							onClick={() => openNewPO(true)}
+							className="h-8 px-4 rounded-lg border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[12.5px] cursor-pointer shadow-brand hover:shadow-brand-hover flex items-center gap-1.5 whitespace-nowrap">
+							Create purchase order
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+								<path d="M5 12h14M13 6l6 6-6 6" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
-

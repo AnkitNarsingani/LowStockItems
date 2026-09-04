@@ -88,20 +88,28 @@ export default function AppShell() {
 			: null,
 	};
 
+	// Anything running anywhere. The top bar carries a hairline for it, so a
+	// background job is visible even on a page that has no other sign of it.
+	const anyBusy = run.phase === 'running' || load.phase === 'loading';
+
 	return (
-		<div className="min-h-screen bg-app flex flex-col text-left">
+		<div className="min-h-screen flex flex-col text-left">
 			{/* TOP BAR */}
-			<div className="h-[52px] bg-surface border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0">
-				<div className="w-[26px] h-[26px] rounded-[7px] bg-brand flex items-center justify-center text-white font-black text-[14px]">
+			<div className="relative h-[52px] bg-surface/85 backdrop-blur-xl border-b border-line flex items-center px-5 gap-[11px] sticky top-0 z-40 flex-shrink-0 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
+				{/* Wordmark: the flat blue square becomes a lit tile, which is the
+				    cheapest way to give the chrome a focal point. */}
+				<div className="w-[27px] h-[27px] rounded-[8px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[14px] shadow-brand select-none">
 					L
 				</div>
-				<div className="font-bold text-[15px] text-body">LowStockItems</div>
+				<div className="font-black text-[15px] text-heading tracking-[-.01em]">
+					Low<span className="text-brand-600">Stock</span>Items
+				</div>
 
 				<div className="flex-1" />
 
 				<button
 					onClick={logout}
-					className="flex items-center gap-2 h-8 px-3 rounded border border-danger-border bg-surface text-danger font-bold text-[12.5px] cursor-pointer hover:bg-red-50">
+					className="group flex items-center gap-2 h-8 px-3 rounded-md border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer hover:border-danger-border hover:bg-danger-bg hover:text-danger">
 					<svg
 						width="15"
 						height="15"
@@ -110,19 +118,34 @@ export default function AppShell() {
 						stroke="currentColor"
 						strokeWidth="1.9"
 						strokeLinecap="round"
-						strokeLinejoin="round">
+						strokeLinejoin="round"
+						className="transition-transform duration-200 group-hover:translate-x-0.5">
 						<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 						<path d="M16 17l5-5-5-5" />
 						<path d="M21 12H9" />
 					</svg>
 					Log out
 				</button>
+
+				{/* Indeterminate hairline along the bottom edge while anything is in
+				    flight — the browser's own loading bar, for our work. */}
+				{anyBusy && (
+					<span className="absolute left-0 right-0 -bottom-px h-[2px] overflow-hidden">
+						<span
+							className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-brand to-transparent"
+							style={{
+								animation:
+									'progressBounce 1.5s cubic-bezier(.5,0,.5,1) infinite',
+							}}
+						/>
+					</span>
+				)}
 			</div>
 
 			<div className="flex-1 flex items-start min-h-0">
 				{/* SIDEBAR */}
-				<nav className="w-[236px] flex-shrink-0 bg-sidebar border-r border-line p-4 px-3 flex flex-col gap-0.5 sticky top-[52px] h-[calc(100vh-52px)] overflow-y-auto self-start">
-					<div className="text-[10px] font-bold text-muted-3 tracking-[.06em] px-3 pt-1 pb-2">
+				<nav className="w-[236px] flex-shrink-0 bg-sidebar border-r border-line p-4 px-3 flex flex-col gap-1 sticky top-[52px] h-[calc(100vh-52px)] overflow-y-auto self-start">
+					<div className="text-[10px] font-black text-muted-3 tracking-[.09em] px-3 pt-1 pb-2">
 						WORKSPACE
 					</div>
 
@@ -132,20 +155,32 @@ export default function AppShell() {
 							<NavLink
 								key={item.to}
 								to={item.to}
-								className={`flex items-center gap-[11px] w-full text-left rounded-lg px-3 py-[9px] text-[13.5px] font-bold no-underline hover:no-underline ${
+								className={`group relative flex items-center gap-[11px] w-full text-left rounded-lg px-3 py-[9px] text-[13.5px] font-bold no-underline hover:no-underline transition-all duration-200 ease-smooth ${
 									active
-										? 'bg-brand text-white'
-										: 'bg-transparent text-body-2 hover:bg-line-4'
+										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-brand'
+										: 'bg-transparent text-body-2 hover:bg-white hover:text-heading hover:shadow-card'
 								}`}>
+								{/* Active marker on the rail, tucked against the nav's left
+								    edge. It says which section you are in even when the eye
+								    is scanning the labels, not the fills. */}
+								<span
+									className={`absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-brand-600 transition-all duration-300 ease-smooth ${
+										active ? 'h-5 opacity-100' : 'h-0 opacity-0'
+									}`}
+								/>
+
 								<svg
 									width="18"
 									height="18"
 									viewBox="0 0 24 24"
 									fill="none"
-									stroke={active ? '#fff' : '#7a828c'}
+									stroke="currentColor"
 									strokeWidth="1.9"
 									strokeLinecap="round"
-									strokeLinejoin="round">
+									strokeLinejoin="round"
+									className={`flex-shrink-0 transition-all duration-200 ease-smooth group-hover:scale-110 ${
+										active ? 'text-white' : 'text-muted-2 group-hover:text-brand-600'
+									}`}>
 									{item.icon}
 								</svg>
 								<span className="flex-1 min-w-0 truncate">{item.label}</span>
@@ -155,12 +190,12 @@ export default function AppShell() {
 								{activity[item.to] && (
 									<span
 										title={activity[item.to].title}
-										className={`flex items-center gap-1 text-[10px] font-bold num flex-shrink-0 ${
-											active ? 'text-white/90' : 'text-link'
+										className={`flex items-center gap-1 text-[10px] font-black num flex-shrink-0 ${
+											active ? 'text-white/90' : 'text-brand-600'
 										}`}>
 										<span
 											className={`w-2.5 h-2.5 rounded-full border-2 border-t-transparent animate-spin ${
-												active ? 'border-white/70' : 'border-link'
+												active ? 'border-white/70' : 'border-brand'
 											}`}
 										/>
 										{activity[item.to].label}
@@ -169,10 +204,36 @@ export default function AppShell() {
 							</NavLink>
 						);
 					})}
+
+					<div className="flex-1" />
+
+					{/* Foot of the rail. A quiet reminder of what the app is for — and
+					    it stops the sidebar ending in dead space. */}
+					<div className="mx-1 mb-1 rounded-xl border border-line bg-surface p-3">
+						<div className="flex items-center gap-2 mb-1.5">
+							<span className="w-1.5 h-1.5 rounded-full bg-ok" />
+							<span className="text-[10.5px] font-black text-body-3 tracking-[.06em]">
+								CONNECTED TO ZOHO
+							</span>
+						</div>
+						<p className="m-0 text-[11.5px] leading-[1.45] text-muted-2">
+							Stock, vendors and purchase orders read live. Lost sales are kept
+							here.
+						</p>
+					</div>
 				</nav>
 
-				{/* MAIN */}
-				<main className="flex-1 min-w-0 overflow-x-auto">
+				{/* MAIN — keyed on the path so each page arrives with a short fade
+				    rather than snapping in.
+
+				    Deliberately not a scroll container. `overflow-x` here would
+				    compute `overflow-y` to auto as well, making this the scrollport
+				    for everything inside it — and since the column is sized to its
+				    content it never actually scrolls, so any `position: sticky`
+				    descendant would silently stop sticking. Every table below lays
+				    out in fr units and compresses rather than overflowing, so the
+				    scroll container bought nothing and cost the sticky toolbars. */}
+				<main key={pathname} className="flex-1 min-w-0 animate-fade-up">
 					<Outlet />
 				</main>
 			</div>

@@ -19,7 +19,11 @@ body {
 	font-family: 'Lato', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
 		sans-serif;
 	color: #333a45;
-	background: #eef0f3;
+	/* The page ground is a very slight vertical wash rather than one flat grey,
+	   so white cards read as lifted off it instead of pasted onto it. */
+	background: #eef1f5;
+	background-image: linear-gradient(180deg, #eaeff6 0%, #eef1f5 340px);
+	background-attachment: fixed;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -44,6 +48,32 @@ input::placeholder {
 	color: #a7adb5;
 }
 
+/* One focus ring for the whole app. Keyboard users get a clear brand halo;
+   mouse users never see it, so the ring can be bold without being noisy. */
+:focus-visible {
+	outline: none;
+	box-shadow:
+		0 0 0 2px #ffffff,
+		0 0 0 4px rgba(64, 141, 251, 0.55);
+	border-radius: 4px;
+}
+
+/* Every button and control settles under the pointer the same way. */
+button {
+	transition:
+		background-color 0.15s cubic-bezier(0.22, 0.61, 0.36, 1),
+		border-color 0.15s cubic-bezier(0.22, 0.61, 0.36, 1),
+		color 0.15s cubic-bezier(0.22, 0.61, 0.36, 1),
+		box-shadow 0.18s cubic-bezier(0.22, 0.61, 0.36, 1),
+		transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* A press should feel like a press. Applied to buttons that aren't disabled,
+   and kept tiny — 1px of travel is felt more than it is seen. */
+button:not(:disabled):active {
+	transform: translateY(1px);
+}
+
 /* Strip the native number spinners. Quantities, rates and adjustments are all
    typed, and the arrows crowd the right edge of these narrow fields. */
 input[type='number']::-webkit-outer-spin-button,
@@ -61,6 +91,57 @@ input[type='number'] {
 /* Tabular figures for every number in a table or total. */
 .num {
 	font-variant-numeric: tabular-nums;
+}
+
+/* ── Skeletons ────────────────────────────────────────────────────────────
+   A sweep of light travelling across the placeholder, rather than the whole
+   block blinking. It reads as "content is on its way" instead of "something
+   is flashing at me". */
+.skeleton {
+	position: relative;
+	overflow: hidden;
+	background: #eef0f3;
+	border-radius: 5px;
+}
+
+.skeleton::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		rgba(255, 255, 255, 0.85),
+		transparent
+	);
+	animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+/* ── Staggered list entry ─────────────────────────────────────────────────
+   Rows arrive in a quick cascade rather than all at once. The delay is set
+   per row from a --i custom property and capped, so a 200-row page does not
+   spend three seconds animating. */
+.stagger > * {
+	animation: rowFadeIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+	animation-delay: calc(var(--i, 0) * 22ms);
+}
+
+@keyframes rowFadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 /* Undo toast: the bar drains over the life of the toast, so the time left to
@@ -83,23 +164,75 @@ input[type='number'] {
 @keyframes toastRise {
 	from {
 		opacity: 0;
-		transform: translateY(10px);
+		transform: translateY(10px) scale(0.97);
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: translateY(0) scale(1);
 	}
 }
 
 .toast-rise {
-	animation: toastRise 0.18s ease forwards;
+	animation: toastRise 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.toast-drain,
-	.toast-rise {
-		animation: none;
+/* ── Row controls that fade in under the pointer ──────────────────────────
+   Applied to a control inside an element carrying Tailwind's `group` class.
+
+   Guarded on `hover: hover`: a touch device has no hover state to reveal
+   these with, so hiding them there would leave a control that is invisible
+   but still tappable. On touch they simply stay visible. */
+.reveal-on-hover {
+	transition:
+		opacity 0.16s ease,
+		transform 0.16s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.reveal-on-hover {
+		opacity: 0;
+		transform: translateX(4px);
 	}
+
+	.group:hover .reveal-on-hover,
+	.group:focus-within .reveal-on-hover {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+/* Indeterminate progress: a lozenge sweeping back and forth, for the waits
+   whose length we genuinely cannot predict. Lives here rather than beside one
+   component because the top bar and the low-stock loader both draw it.
+   Translated rather than offset, so it never triggers layout. */
+@keyframes progressBounce {
+	0% {
+		transform: translateX(-120%);
+	}
+	100% {
+		transform: translateX(420%);
+	}
+}
+
+.progress-bounce {
+	animation: progressBounce 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+/* A slow drift across a brand gradient, for the one or two surfaces that
+   should feel alive while you wait on them. */
+@keyframes gradientDrift {
+	0%,
+	100% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+}
+
+.gradient-drift {
+	background-size: 200% 200%;
+	animation: gradientDrift 6s ease infinite;
 }
 
 code {
@@ -112,9 +245,31 @@ code {
 	height: 10px;
 }
 
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
 	background: #cfd4da;
 	border-radius: 6px;
 	border: 2px solid transparent;
 	background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #b4bbc4;
+	background-clip: content-box;
+}
+
+/* Nothing here is load-bearing — every animation above is decoration over a
+   state that is already legible without it. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }

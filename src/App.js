@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import './App.css';
 import AppShell from './components/AppShell';
 import ZohoItemTable from './components/ZohoItemTable';
 import NewPOPage from './pages/NewPOPage';
@@ -44,21 +43,13 @@ const storeTokens = (accessToken, expiresIn) => {
 	localStorage.setItem('expiresAt', expiresAt.toString());
 };
 
-// === STYLES ===
-const styles = {
-	loginContainer: {
-		marginTop: 60,
-	},
-	loginButton: {
-		background: '#408DFB',
-		color: '#fff',
-		fontSize: 18,
-		padding: '16px 24px',
-		border: 'none',
-		borderRadius: 4,
-		cursor: 'pointer',
-	},
-};
+// What the app does, said once on the only screen a new user sees before
+// anything is loaded.
+const LOGIN_POINTS = [
+	'See every item at or below its reorder point, grouped by vendor',
+	'Raise a draft purchase order from a selection in two clicks',
+	'Log the demand Zoho never sees, and let it move your reorder points',
+];
 
 function App() {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -129,11 +120,69 @@ function App() {
 	// on every route.
 	if (!isAuthenticated) {
 		return (
-			<div className="App">
-				<div style={styles.loginContainer}>
-					<button onClick={handleLogin} style={styles.loginButton}>
-						Login with Zoho
+			<div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+				{/* Two soft brand washes behind the card. They give the empty screen
+				    some depth without putting anything on it to read. */}
+				<div
+					aria-hidden
+					className="pointer-events-none absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full blur-3xl opacity-50"
+					style={{
+						background:
+							'radial-gradient(circle, rgba(64,141,251,.30), transparent 68%)',
+					}}
+				/>
+				<div
+					aria-hidden
+					className="pointer-events-none absolute -bottom-48 -right-32 w-[560px] h-[560px] rounded-full blur-3xl opacity-45"
+					style={{
+						background:
+							'radial-gradient(circle, rgba(47,123,224,.24), transparent 68%)',
+					}}
+				/>
+
+				<div className="relative w-full max-w-[420px] bg-surface border border-line rounded-2xl shadow-float p-8 animate-fade-up">
+					<div className="flex items-center gap-3 mb-7">
+						<div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-black text-[20px] shadow-brand">
+							L
+						</div>
+						<div>
+							<div className="font-black text-[18px] text-heading tracking-[-.02em] leading-tight">
+								Low<span className="text-brand-600">Stock</span>Items
+							</div>
+							<div className="text-[12.5px] text-muted-2">
+								Purchasing, on top of Zoho Books
+							</div>
+						</div>
+					</div>
+
+					<ul className="list-none p-0 m-0 mb-7 flex flex-col gap-3">
+						{LOGIN_POINTS.map((point) => (
+							<li key={point} className="flex items-start gap-2.5">
+								<span className="w-[18px] h-[18px] rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0 mt-px">
+									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2f7be0" strokeWidth="3.4">
+										<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+									</svg>
+								</span>
+								<span className="text-[13px] text-body-2 leading-[1.5]">
+									{point}
+								</span>
+							</li>
+						))}
+					</ul>
+
+					<button
+						onClick={handleLogin}
+						className="w-full h-11 rounded-xl border-none bg-gradient-to-b from-brand-400 to-brand-600 text-white font-black text-[14px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
+						Continue with Zoho
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+							<path d="M5 12h14M13 6l6 6-6 6" />
+						</svg>
 					</button>
+
+					<p className="text-[11.5px] text-muted-2 text-center mt-4 mb-0 leading-relaxed">
+						You will be sent to Zoho to sign in. Nothing is stored here beyond
+						the session token.
+					</p>
 				</div>
 			</div>
 		);

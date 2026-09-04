@@ -300,23 +300,23 @@ export default function LostSaleFormPage() {
 	return (
 		<div className="fixed top-[52px] left-[236px] right-0 bottom-0 z-[70] bg-surface flex flex-col">
 			{/* Header */}
-			<div className="h-16 flex-shrink-0 bg-surface border-b border-line flex items-center justify-between gap-3 px-6">
+			<div className="h-16 flex-shrink-0 bg-surface/90 backdrop-blur-xl border-b border-line flex items-center justify-between gap-3 px-6 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
 				<div className="flex items-center gap-3 min-w-0">
 					<button
 						onClick={() => navigate('/lost-sales')}
 						title="Back"
 						aria-label="Back"
-						className="w-[30px] h-[30px] rounded border border-line bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 hover:bg-surface-2">
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b6270" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+						className="group w-[30px] h-[30px] rounded-lg border border-line-2 bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:-translate-x-0.5">
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
 					</button>
 					<div className="flex items-center gap-2.5 min-w-0">
-					<h1 className="text-[21px] text-heading font-normal truncate m-0">
+					<h1 className="text-[21px] text-heading font-black tracking-[-.02em] truncate m-0">
 						{isEditing ? 'Edit lost sale' : 'Record a lost sale'}
 					</h1>
 					{filledRows.length > 0 && (
-						<span className="text-[12px] font-bold text-link bg-brand-bg rounded-[20px] px-[11px] py-[3px] flex-shrink-0">
+						<span className="num text-[12px] font-black text-brand-700 bg-brand-100 rounded-full px-[11px] py-[3px] flex-shrink-0 animate-pop-in">
 							{filledRows.length} item{filledRows.length !== 1 ? 's' : ''}
 						</span>
 						)}
@@ -327,7 +327,7 @@ export default function LostSaleFormPage() {
 					onClick={() => navigate('/lost-sales')}
 					title="Close"
 					aria-label="Close"
-					className="w-8 h-8 rounded flex items-center justify-center text-muted hover:bg-surface-2 hover:text-body cursor-pointer border-none bg-transparent flex-shrink-0">
+					className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:bg-danger-bg hover:text-danger cursor-pointer border-none bg-transparent flex-shrink-0">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
 						<path d="M6 6l12 12M18 6L6 18" />
 					</svg>
@@ -338,7 +338,11 @@ export default function LostSaleFormPage() {
 			<div className="flex-1 overflow-y-auto overflow-x-hidden">
 				{loadingRecord && (
 					<div className="px-8 pt-5">
-						<div className="px-4 py-2.5 text-[13px] text-body-3 bg-surface-2 border border-line rounded">
+						<div className="px-4 py-3 text-[13px] text-body-3 bg-surface-2 border border-line rounded-xl flex items-center gap-2.5">
+							<span className="relative flex w-2 h-2 flex-shrink-0">
+								<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
+								<span className="relative w-2 h-2 rounded-full bg-brand" />
+							</span>
 							Loading the record…
 						</div>
 					</div>
@@ -346,7 +350,7 @@ export default function LostSaleFormPage() {
 
 				{result && (
 					<div className="px-8 pt-5">
-						<div className="flex items-center justify-between px-4 py-2.5 text-[13px] rounded border bg-red-50 border-danger-border text-danger">
+						<div className="animate-slide-up-in flex items-center justify-between px-4 py-3 text-[13px] font-bold rounded-xl border shadow-card bg-danger-bg border-danger-border text-danger">
 							<span>{result.message}</span>
 							<button
 								onClick={() => setResult(null)}
@@ -375,7 +379,7 @@ export default function LostSaleFormPage() {
 
 						{!customerRecord && customerName && (
 							<div className="mt-2 flex items-center gap-2">
-								<span className="text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-2 py-px">
+								<span className="text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-full px-2 py-px">
 									new
 								</span>
 								<span className="text-[12px] text-muted">
@@ -405,20 +409,20 @@ export default function LostSaleFormPage() {
 				{/* Item table — the PO page's table, column for column, so the two
 				    forms read as one product. */}
 				<div className="px-8 pb-6">
-					<div className="bg-surface border border-line rounded overflow-visible mr-12">
-						<div className="flex items-center justify-between gap-3 px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
-							<div className="font-bold text-[14px] text-body">Item Table</div>
+					<div className="bg-surface border border-line rounded-xl overflow-visible mr-12 shadow-card">
+						<div className="flex items-center justify-between gap-3 px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-xl">
+							<div className="font-black text-[14px] text-heading">Item Table</div>
 							{errors.items ? (
 								<div className="text-[12px] text-danger">{errors.items}</div>
 							) : (
-								<div className="num text-[12.5px] text-body-3">
+								<div className="num text-[12.5px] font-bold text-body-3">
 									{filledRows.length} item{filledRows.length !== 1 ? 's' : ''}
 								</div>
 							)}
 						</div>
 
 						<div
-							className="grid bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em]"
+							className="grid bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em]"
 							style={{ gridTemplateColumns: ITEM_COLS }}>
 							<div className="px-3.5 py-2.5 border-r border-line min-w-0">
 								ITEM DETAILS
@@ -439,17 +443,17 @@ export default function LostSaleFormPage() {
 							return (
 							<div
 								key={r.key}
-								className="grid border-b border-line items-stretch relative"
+								className="group grid border-b border-line items-stretch relative bg-surface hover:bg-brand-50/40 transition-colors duration-150"
 								style={{ gridTemplateColumns: ITEM_COLS }}>
 								<div className="px-3.5 py-3 border-r border-line min-w-0">
 									{isFilled(r) ? (
 										<div className="pl-2.5">
 											<div className="flex items-center gap-[7px] flex-wrap">
-												<span className="font-bold text-[13.5px] text-body">
+												<span className="font-black text-[13.5px] text-heading">
 													{r.name}
 												</span>
 												{r.isFreeText && (
-													<span className="text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-2 py-px">
+													<span className="text-[10px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-2 py-px">
 														new
 													</span>
 												)}
@@ -502,7 +506,7 @@ export default function LostSaleFormPage() {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));
 										}}
-										className="num w-full min-w-0 h-[34px] border border-line rounded px-2.5 text-right text-[13.5px] outline-none focus:border-brand"
+										className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 									/>
 								</div>
 
@@ -513,7 +517,7 @@ export default function LostSaleFormPage() {
 										onClick={() => removeRow(r.key)}
 										title="Remove line"
 										aria-label={`Remove ${r.name || 'this line'}`}
-										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
+										className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 reveal-on-hover hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 											<path d="M3 6h18" />
 											<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
@@ -533,7 +537,7 @@ export default function LostSaleFormPage() {
 					<div className="mr-12 mt-3 flex justify-end">
 						<div className="text-[12.5px] text-muted pr-6">
 							Total Quantity{' '}
-							<span className="num text-muted-2 ml-1">
+							<span className="num font-black text-body-2 ml-1">
 								{totalQtyWanted.toLocaleString('en-IN')}
 							</span>
 						</div>
@@ -542,11 +546,11 @@ export default function LostSaleFormPage() {
 			</div>
 
 			{/* Footer */}
-			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3">
+			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3 shadow-[0_-1px_3px_rgba(28,42,70,.05)]">
 				<button
 					onClick={handleSave}
 					disabled={saving}
-					className="h-[34px] px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{saving && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
@@ -555,9 +559,25 @@ export default function LostSaleFormPage() {
 				<button
 					onClick={() => navigate('/lost-sales')}
 					disabled={saving}
-					className="h-[34px] px-4 rounded border-none bg-transparent text-body-3 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:text-body">
+					className="h-[34px] px-4 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:bg-surface-2 hover:border-muted-4">
 					Cancel
 				</button>
+
+				<div className="flex-1" />
+
+				{/* The figures the save is about, kept beside the button that
+				    performs it — the same placement the PO footer uses. */}
+				{filledRows.length > 0 && (
+					<div className="flex items-baseline gap-2.5 pr-1">
+						<span className="text-[12px] text-muted font-bold">
+							{filledRows.length} item{filledRows.length !== 1 ? 's' : ''}
+						</span>
+						<span className="num text-[17px] font-black text-heading tracking-[-.02em]">
+							{totalQtyWanted.toLocaleString('en-IN')}
+						</span>
+						<span className="text-[12px] text-muted font-bold">units</span>
+					</div>
+				)}
 			</div>
 
 			{showAdvanced && (

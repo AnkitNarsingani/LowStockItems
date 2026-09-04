@@ -79,18 +79,18 @@ export default function BulkAddItemsModal({
 
 	return (
 		<div
-			className="fixed inset-0 z-[80] flex items-center justify-center p-[30px]"
+			className="fixed inset-0 z-[80] flex items-center justify-center p-[30px] animate-fade-in backdrop-blur-[3px]"
 			style={{ background: 'rgba(20,30,50,.42)' }}
 			onClick={(e) => e.target === e.currentTarget && onClose()}>
-			<div className="w-[1000px] max-w-full h-[620px] max-h-[92vh] bg-surface rounded shadow-[0_30px_80px_rgba(10,20,40,.35)] flex flex-col overflow-hidden">
+			<div className="animate-pop-in w-[1000px] max-w-full h-[620px] max-h-[92vh] bg-surface rounded-2xl shadow-float flex flex-col overflow-hidden">
 				{/* Header */}
 				<div className="flex items-center justify-between px-5 py-[15px] bg-surface-2 border-b border-line">
-					<div className="text-[16px] font-bold text-heading">
+					<div className="text-[16px] font-black text-heading tracking-[-.01em]">
 						Add Items in Bulk
 					</div>
 					<button
 						onClick={onClose}
-						className="w-[26px] h-[26px] rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
+						className="w-[26px] h-[26px] rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
 							<path d="M6 6l12 12M18 6L6 18" />
 						</svg>
@@ -101,7 +101,7 @@ export default function BulkAddItemsModal({
 					{/* Left — catalogue */}
 					<div className="w-1/2 border-r border-line-3 flex flex-col min-h-0">
 						<div className="px-4 py-3.5">
-							<div className="flex items-center gap-2 border border-line-2 rounded px-[11px] py-[9px]">
+							<div className="flex items-center gap-2 border border-line-2 rounded-lg px-[11px] py-[9px] transition-shadow focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
 								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 									<circle cx="11" cy="11" r="7" />
 									<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -140,14 +140,16 @@ export default function BulkAddItemsModal({
 										<div
 											key={item.item_id}
 											onClick={() => toggle(item)}
-											className={`flex justify-between items-center px-4 py-[11px] cursor-pointer border-b border-[#f4f5f6] ${
-												checked ? 'bg-row-selected' : 'hover:bg-surface-2'
+											className={`flex justify-between items-center px-4 py-[11px] cursor-pointer border-b border-line-4 transition-colors duration-100 ${
+												checked
+													? 'bg-brand-50'
+													: 'hover:bg-surface-2'
 											}`}>
 											<div className="min-w-0">
-												<div className="text-[13.5px] font-bold text-body truncate">
+												<div className="text-[13.5px] font-black text-heading truncate">
 													{item.name}
 													{already && (
-														<span className="ml-1.5 text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-1.5 py-px">
+														<span className="ml-1.5 text-[10px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-1.5 py-px">
 															on PO
 														</span>
 													)}
@@ -188,37 +190,48 @@ export default function BulkAddItemsModal({
 					<div className="w-1/2 flex flex-col min-h-0">
 						<div className="flex items-center justify-between px-5 pt-4 pb-3">
 							<div className="flex items-center gap-2.5">
-								<span className="text-[18px] font-bold text-heading">
+								<span className="text-[17px] font-black text-heading tracking-[-.01em]">
 									Selected Items
 								</span>
-								<span className="text-[12px] font-bold text-body-3 bg-line-4 rounded-[20px] px-2.5 py-0.5">
+								<span className="num text-[12px] font-black text-brand-700 bg-brand-100 rounded-full px-2.5 py-0.5">
 									{pickedList.length}
 								</span>
 							</div>
-							<div className="text-[13px] text-muted num">
-								Total Quantity: {totalQty.toLocaleString('en-IN')}
+							<div className="text-[13px] text-muted">
+								Total Quantity{' '}
+								<span className="num font-black text-body-2 ml-0.5">
+									{totalQty.toLocaleString('en-IN')}
+								</span>
 							</div>
 						</div>
 
 						<div className="flex-1 overflow-auto px-5">
 							{pickedList.length === 0 ? (
-								<div className="h-full flex items-center justify-center text-center text-muted-2 text-[13.5px] p-10">
-									Click the item names from the left pane to select them
+								<div className="h-full flex flex-col items-center justify-center text-center p-10">
+									<div className="w-12 h-12 rounded-2xl bg-surface-2 border border-line flex items-center justify-center mb-3">
+										<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+											<path d="M20 6L9 17l-5-5" />
+										</svg>
+									</div>
+									<p className="m-0 text-[13.5px] text-muted-2 max-w-[260px] leading-relaxed">
+										Click the item names on the left to build the list. Each one
+										starts at a quantity of 1.
+									</p>
 								</div>
 							) : (
 								pickedList.map((item) => (
 									<div
 										key={item.item_id}
-										className="flex items-center justify-between py-3 border-b border-line-4 gap-3">
-										<span className="text-[13.5px] text-body min-w-0 truncate">
+										className="flex items-center justify-between py-3 border-b border-line-4 gap-3 animate-fade-up">
+										<span className="text-[13.5px] font-bold text-body min-w-0 truncate">
 											{item.name}
 										</span>
-										<div className="flex items-center border border-line-2 rounded overflow-hidden h-[34px] flex-shrink-0">
+										<div className="flex items-center border border-line-2 rounded-lg overflow-hidden h-[34px] flex-shrink-0 shadow-card">
 											<button
 												onClick={() =>
 													setQty(item.item_id, picked[item.item_id] - 1)
 												}
-												className="w-[34px] h-full border-none bg-surface-2 cursor-pointer text-body-3 text-[16px]">
+												className="w-[34px] h-full border-none bg-surface-2 cursor-pointer text-body-3 text-[16px] font-bold hover:bg-brand-50 hover:text-brand-600">
 												−
 											</button>
 											<input
@@ -229,13 +242,13 @@ export default function BulkAddItemsModal({
 														parseInt(e.target.value, 10) || 1,
 													)
 												}
-												className="num w-[52px] h-full border-none border-x border-line text-center text-[13.5px] outline-none"
+												className="num w-[52px] h-full border-none border-x border-line text-center text-[13.5px] font-black text-heading outline-none focus:bg-brand-50"
 											/>
 											<button
 												onClick={() =>
 													setQty(item.item_id, picked[item.item_id] + 1)
 												}
-												className="w-[34px] h-full border-none bg-surface-2 cursor-pointer text-body-3 text-[16px]">
+												className="w-[34px] h-full border-none bg-surface-2 cursor-pointer text-body-3 text-[16px] font-bold hover:bg-brand-50 hover:text-brand-600">
 												+
 											</button>
 										</div>
@@ -247,16 +260,16 @@ export default function BulkAddItemsModal({
 				</div>
 
 				{/* Footer */}
-				<div className="flex gap-3 px-5 py-[15px] border-t border-line-3">
+				<div className="flex items-center gap-3 px-5 py-[15px] border-t border-line-3 bg-surface-2">
 					<button
 						onClick={handleAdd}
 						disabled={pickedList.length === 0}
-						className="h-[38px] px-5 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 ease-smooth">
 						Add Items
 					</button>
 					<button
 						onClick={onClose}
-						className="h-[38px] px-[18px] rounded border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer">
+						className="h-[38px] px-[18px] rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer hover:bg-surface-2 hover:border-muted-4">
 						Cancel
 					</button>
 				</div>

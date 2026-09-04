@@ -374,23 +374,23 @@ export default function NewPOPage() {
 	return (
 		<div className="fixed top-[52px] left-[236px] right-0 bottom-0 z-[70] bg-surface flex flex-col">
 			{/* Header — title left, close right, thin rule beneath. */}
-			<div className="h-16 flex-shrink-0 bg-surface border-b border-line flex items-center justify-between gap-3 px-6">
+			<div className="h-16 flex-shrink-0 bg-surface/90 backdrop-blur-xl border-b border-line flex items-center justify-between gap-3 px-6 shadow-[0_1px_3px_rgba(28,42,70,.05)]">
 				<div className="flex items-center gap-3 min-w-0">
 					<button
 						onClick={() => navigate('/')}
 						title="Back"
 						aria-label="Back"
-						className="w-[30px] h-[30px] rounded border border-line bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 hover:bg-surface-2">
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b6270" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+						className="group w-[30px] h-[30px] rounded-lg border border-line-2 bg-surface flex items-center justify-center cursor-pointer flex-shrink-0 text-body-3 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:-translate-x-0.5">
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
 					</button>
 					<div className="flex items-center gap-2.5 min-w-0">
-					<h1 className="text-[21px] text-heading font-normal truncate m-0">
+					<h1 className="text-[21px] text-heading font-black tracking-[-.02em] truncate m-0">
 						New Purchase Order
 					</h1>
 					{filledLines.length > 0 && (
-						<span className="text-[12px] font-bold text-link bg-brand-bg rounded-[20px] px-[11px] py-[3px] flex-shrink-0">
+						<span className="num text-[12px] font-black text-brand-700 bg-brand-100 rounded-full px-[11px] py-[3px] flex-shrink-0 animate-pop-in">
 							{filledLines.length} item{filledLines.length !== 1 ? 's' : ''}
 						</span>
 						)}
@@ -401,7 +401,7 @@ export default function NewPOPage() {
 					onClick={() => navigate('/')}
 					title="Close"
 					aria-label="Close"
-					className="w-8 h-8 rounded flex items-center justify-center text-muted hover:bg-surface-2 hover:text-body cursor-pointer border-none bg-transparent flex-shrink-0">
+					className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:bg-danger-bg hover:text-danger cursor-pointer border-none bg-transparent flex-shrink-0">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
 						<path d="M6 6l12 12M18 6L6 18" />
 					</svg>
@@ -414,10 +414,10 @@ export default function NewPOPage() {
 					<div className="px-8 pt-5 flex flex-col gap-2.5">
 						{result && (
 							<div
-								className={`flex items-center justify-between px-4 py-2.5 text-[13px] rounded border ${
+								className={`animate-slide-up-in flex items-center justify-between px-4 py-3 text-[13px] font-bold rounded-xl border shadow-card ${
 									result.success
-										? 'bg-green-50 border-green-200 text-ok'
-										: 'bg-red-50 border-danger-border text-danger'
+										? 'bg-ok-bg border-ok-border text-ok'
+										: 'bg-danger-bg border-danger-border text-danger'
 								}`}>
 								<span>{result.message}</span>
 								<button
@@ -429,7 +429,11 @@ export default function NewPOPage() {
 						)}
 
 						{hydrating && (
-							<div className="px-4 py-2.5 text-[13px] text-body-3 bg-surface-2 border border-line rounded">
+							<div className="px-4 py-3 text-[13px] text-body-3 bg-surface-2 border border-line rounded-xl flex items-center gap-2.5">
+								<span className="relative flex w-2 h-2 flex-shrink-0">
+									<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
+									<span className="relative w-2 h-2 rounded-full bg-brand" />
+								</span>
 								Reloading the selected items…{' '}
 								{hydrateProgress
 									? `${hydrateProgress.done} / ${hydrateProgress.total}`
@@ -477,7 +481,7 @@ export default function NewPOPage() {
 				{/* Summary — one right-aligned block, each control in the row whose
 				    number it governs. */}
 				<div className="px-8 pb-10 flex justify-end">
-					<div className="w-[380px] max-w-full bg-sidebar border border-line rounded px-[18px] py-4">
+					<div className="w-[380px] max-w-full bg-surface-3 border border-line rounded-xl px-[18px] py-4 shadow-card">
 						<div className="flex justify-between items-center py-1 text-[13.5px]">
 							<span className="font-bold text-body">Sub Total</span>
 							<span className="num font-bold">{money(summary.subTotal)}</span>
@@ -495,7 +499,7 @@ export default function NewPOPage() {
 						<div className="flex justify-between items-center py-2.5 border-t border-line-4 text-[13.5px] gap-2">
 							<span className="text-body-2 flex-shrink-0">Discount</span>
 							<div className="flex items-center gap-2.5">
-								<div className="flex border border-line-2 rounded overflow-hidden h-8 bg-surface focus-within:border-brand">
+								<div className="flex border border-line-2 rounded-lg overflow-hidden h-8 bg-surface transition-shadow focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
 									<input
 										type="number"
 										min="0"
@@ -511,7 +515,7 @@ export default function NewPOPage() {
 											setDiscountType((t) => (t === '%' ? '₹' : '%'))
 										}
 										title="Switch between percentage and flat amount"
-										className="w-8 border-none border-l border-line bg-surface-2 cursor-pointer font-bold text-[13px] text-body-3 hover:bg-brand-bg hover:text-link">
+										className="w-8 border-none border-l border-line bg-surface-2 cursor-pointer font-black text-[13px] text-body-3 hover:bg-brand-50 hover:text-brand-600">
 										{discountType}
 									</button>
 								</div>
@@ -540,15 +544,15 @@ export default function NewPOPage() {
 										onChange={(e) => setAdjustment(e.target.value)}
 										placeholder="0.00"
 										title="Enter your own adjustment — negative values reduce the total"
-										className="num w-[86px] h-8 border border-line-2 rounded px-2 text-right text-[13px] outline-none bg-surface focus:border-brand"
+										className="num w-[86px] h-8 border border-line-2 rounded-lg px-2 text-right text-[13px] outline-none bg-surface transition-shadow focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 									/>
 								)}
 							</div>
 						</div>
 
 						<div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-line-3 text-[16px]">
-							<span className="font-bold text-heading">Total</span>
-							<span className="num font-black text-heading">
+							<span className="font-black text-heading">Total</span>
+							<span className="num font-black text-[19px] text-brand-700 tracking-[-.02em]">
 								{money(summary.total)}
 							</span>
 						</div>
@@ -557,11 +561,11 @@ export default function NewPOPage() {
 			</div>
 
 			{/* Footer — actions left, as Zoho places them. */}
-			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3">
+			<div className="flex-shrink-0 bg-surface border-t border-line flex items-center gap-3 px-6 py-3 shadow-[0_-1px_3px_rgba(28,42,70,.05)]">
 				<button
 					onClick={handleCreate}
 					disabled={!canCreate}
-					className="h-[34px] px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+					className="h-[34px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{creating && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
@@ -570,9 +574,23 @@ export default function NewPOPage() {
 				<button
 					onClick={() => navigate('/')}
 					disabled={creating}
-					className="h-[34px] px-4 rounded border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:bg-surface-2">
+					className="h-[34px] px-4 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-50 hover:bg-surface-2 hover:border-muted-4">
 					Cancel
 				</button>
+
+				<div className="flex-1" />
+
+				{/* The footer is where the decision is made, so the number the
+				    decision turns on is repeated here rather than left three
+				    scrolls up in the summary. */}
+				<div className="flex items-baseline gap-2.5 pr-1">
+					<span className="text-[12px] text-muted font-bold">
+						{readyLines.length} line{readyLines.length !== 1 ? 's' : ''} ready
+					</span>
+					<span className="num text-[17px] font-black text-heading tracking-[-.02em]">
+						{money(summary.total)}
+					</span>
+				</div>
 			</div>
 
 			{showBulk && (

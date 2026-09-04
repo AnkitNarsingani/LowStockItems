@@ -144,7 +144,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						? 'Loading items…'
 						: 'Type or click to select an item.'
 				}
-				className="w-full h-[34px] border border-line-2 rounded px-2.5 text-[13.5px] outline-none text-body focus:border-brand"
+				className="w-full h-[34px] border border-line-2 rounded-lg px-2.5 text-[13.5px] outline-none text-body bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 			/>
 
 			{open && pos && (
@@ -156,7 +156,7 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 						bottom: pos.bottom,
 						width: pos.width,
 					}}
-					className="z-50 bg-surface border border-[#e0e3e7] rounded shadow-[0_14px_38px_rgba(20,30,50,.20)] overflow-hidden">
+					className="z-50 animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
 					<div
 						id={listId}
 						ref={listRef}
@@ -188,13 +188,15 @@ export default function ItemPicker({ items, loading, error, onPick }) {
 										aria-selected={isActive}
 										onMouseEnter={() => setActive(i)}
 										onClick={() => choose(it)}
-										className={`flex justify-between px-[13px] py-[9px] cursor-pointer border-b border-[#f4f5f6] ${
-											isActive ? 'bg-brand' : ''
+										className={`flex justify-between px-[13px] py-[9px] cursor-pointer border-b border-line-4 transition-colors duration-100 ${
+											isActive
+												? 'bg-gradient-to-r from-brand-500 to-brand-600'
+												: 'hover:bg-brand-50'
 										}`}>
 										<div className="min-w-0">
 											<div
-												className={`text-[13.5px] font-bold truncate ${
-													isActive ? 'text-white' : 'text-body'
+												className={`text-[13.5px] font-black truncate ${
+													isActive ? 'text-white' : 'text-heading'
 												}`}>
 												{it.name}
 											</div>

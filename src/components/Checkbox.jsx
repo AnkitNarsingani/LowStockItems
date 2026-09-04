@@ -29,12 +29,14 @@ export default function Checkbox({
 				}
 			}}
 			style={{ width: size, height: size }}
-			className={`rounded flex items-center justify-center flex-shrink-0 ${
-				disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+			className={`rounded-[5px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ease-smooth ${
+				disabled
+					? 'cursor-not-allowed opacity-50'
+					: 'cursor-pointer active:scale-90'
 			} ${
 				filled
-					? 'bg-brand border border-brand'
-					: 'bg-surface border-[1.5px] border-muted-4'
+					? 'bg-brand border border-brand shadow-[0_1px_3px_rgba(64,141,251,.4)]'
+					: 'bg-surface border-[1.5px] border-muted-4 hover:border-brand-400 hover:bg-brand-50'
 			}`}>
 			{checked ? (
 				<svg
@@ -43,12 +45,20 @@ export default function Checkbox({
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="#fff"
-					strokeWidth="3">
-					<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+					strokeWidth="3.2">
+					{/* The tick draws itself on. It is 200ms of feedback that makes a
+					    selection feel acknowledged rather than merely recorded. */}
+					<path
+						d="M20 6L9 17l-5-5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeDasharray="24"
+						className="animate-tick-draw"
+					/>
 				</svg>
 			) : indeterminate ? (
 				<span
-					className="bg-white rounded-full"
+					className="bg-white rounded-full animate-pop-in"
 					style={{ width: size * 0.5, height: 2 }}
 				/>
 			) : null}
@@ -61,13 +71,20 @@ export function RoundCheck({ checked, size = 22 }) {
 	return (
 		<div
 			style={{ width: size, height: size }}
-			className={`rounded-full flex items-center justify-center flex-shrink-0 ${
+			className={`rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150 ease-smooth ${
 				checked
-					? 'bg-ok border border-ok'
+					? 'bg-ok border border-ok shadow-[0_1px_4px_rgba(26,157,84,.35)] scale-100'
 					: 'bg-surface border-[1.5px] border-line-2'
 			}`}>
 			{checked && (
-				<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+				<svg
+					width="13"
+					height="13"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="#fff"
+					strokeWidth="3"
+					className="animate-pop-in">
 					<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
 				</svg>
 			)}

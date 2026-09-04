@@ -70,7 +70,7 @@ export default function AdvancedCustomerSearch({
 			className="fixed inset-0 z-[90] flex items-center justify-center p-8"
 			style={{ background: 'rgba(20,30,50,.42)' }}
 			onClick={(e) => e.target === e.currentTarget && onClose()}>
-			<div className="w-[900px] max-w-full max-h-[86vh] bg-surface rounded shadow-[0_30px_80px_rgba(10,20,40,.35)] flex flex-col overflow-hidden">
+			<div className="w-[900px] max-w-full max-h-[86vh] bg-surface rounded shadow-float flex flex-col overflow-hidden">
 				<div className="flex items-center justify-between px-5 py-[15px] bg-surface-2 border-b border-line">
 					<div className="text-[16px] font-bold text-heading">
 						Advanced Customer Search
@@ -78,7 +78,7 @@ export default function AdvancedCustomerSearch({
 					<button
 						onClick={onClose}
 						aria-label="Close"
-						className="w-[26px] h-[26px] rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
+						className="w-[26px] h-[26px] rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-danger-bg">
 						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
 							<path d="M6 6l12 12M18 6L6 18" />
 						</svg>
@@ -90,7 +90,7 @@ export default function AdvancedCustomerSearch({
 					<select
 						value={field}
 						onChange={(e) => setField(e.target.value)}
-						className="h-[38px] border border-line-2 rounded px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-brand">
+						className="h-[38px] border border-line-2 rounded-lg px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]">
 						{FIELDS.map((f) => (
 							<option key={f.id} value={f.id}>
 								{f.label}
@@ -104,12 +104,12 @@ export default function AdvancedCustomerSearch({
 						onKeyDown={(e) => e.key === 'Enter' && runSearch()}
 						placeholder="Search"
 						autoFocus
-						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-brand"
+						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] outline-none focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 					/>
 
 					<button
 						onClick={runSearch}
-						className="h-[38px] px-5 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer">
+						className="h-[38px] px-5 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth">
 						Search
 					</button>
 				</div>
@@ -136,7 +136,7 @@ export default function AdvancedCustomerSearch({
 							<div
 								key={c.contact_id}
 								onClick={() => onSelect(c)}
-								className="grid grid-cols-[1.4fr_1.4fr_1.2fr_1fr] border-b border-line-4 text-[13px] cursor-pointer hover:bg-brand-bg items-center">
+								className="grid grid-cols-[1.4fr_1.4fr_1.2fr_1fr] border-b border-line-4 text-[13px] cursor-pointer hover:bg-brand-50 items-center">
 								<div className="px-4 py-2.5 text-link font-bold truncate">
 									{c.contact_name}
 								</div>

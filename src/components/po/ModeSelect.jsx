@@ -93,8 +93,10 @@ export default function ModeSelect({
 				onKeyDown={onKeyDown}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				className={`w-full min-h-[38px] px-3 py-2 border rounded bg-surface flex items-center justify-between gap-2 cursor-pointer text-left ${
-					open ? 'border-brand ring-2 ring-brand/15' : 'border-line-2'
+				className={`w-full min-h-[38px] px-3 py-2 border rounded-lg bg-surface flex items-center justify-between gap-2 cursor-pointer text-left transition-all duration-200 ease-smooth ${
+					open
+						? 'border-brand shadow-[0_0_0_3px_rgba(64,141,251,.14)]'
+						: 'border-line-2 shadow-card hover:border-muted-4'
 				}`}>
 				{multiple ? (
 					chosen.length === 0 ? (
@@ -143,7 +145,7 @@ export default function ModeSelect({
 					ref={listRef}
 					role="listbox"
 					aria-multiselectable={multiple || undefined}
-					className="absolute top-[calc(100%+4px)] left-0 right-0 bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.16)] z-40 overflow-auto max-h-[320px]">
+					className="animate-slide-down absolute top-[calc(100%+5px)] left-0 right-0 bg-surface border border-line-2 rounded-xl shadow-pop z-40 overflow-auto max-h-[320px]">
 					{options.map((o, i) => {
 						const isActive = i === active;
 						// Solid brand would swallow a ticked checkbox, which is the one
@@ -158,11 +160,11 @@ export default function ModeSelect({
 								aria-selected={multiple ? isChosen(o) : o.id === value}
 								onMouseEnter={() => setActive(i)}
 								onClick={() => pick(o)}
-								className={`px-3.5 py-2.5 cursor-pointer border-b border-line-4 last:border-b-0 flex items-start gap-2.5 ${
+								className={`px-3.5 py-2.5 cursor-pointer border-b border-line-4 last:border-b-0 flex items-start gap-2.5 transition-colors duration-100 ${
 									dark
-										? 'bg-brand text-white'
+										? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white'
 										: isActive
-											? 'bg-brand-bg text-body'
+											? 'bg-brand-50 text-body'
 											: 'text-body'
 								}`}>
 								{multiple && (
@@ -177,12 +179,12 @@ export default function ModeSelect({
 								)}
 								<div className="min-w-0">
 									<div className="flex items-center gap-2 flex-wrap">
-										<span className="text-[13px] font-bold">
+										<span className="text-[13px] font-black">
 											{o.n}. {o.name}
 										</span>
 										{o.existing && (
 											<span
-												className={`text-[9.5px] font-bold uppercase tracking-wide rounded px-1.5 py-px border ${
+												className={`text-[9.5px] font-black uppercase tracking-wide rounded-full px-1.5 py-px border ${
 													dark
 														? 'bg-white/20 text-white border-white/30'
 														: 'bg-surface-2 text-muted border-line'

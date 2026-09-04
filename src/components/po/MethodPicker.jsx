@@ -461,10 +461,10 @@ export default function MethodPicker({ lines, onApply }) {
 
 			{/* Preview — a full-width band, so the result table gets the whole page
 			    rather than the narrow control column. */}
-			<div className="-mx-8 mt-1 px-8 py-[18px] border-y border-line bg-sidebar">
+			<div className="-mx-8 mt-1 px-8 py-[18px] border-y border-line bg-gradient-to-b from-brand-50/60 to-sidebar">
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div className="min-w-0">
-						<div className="text-[13px] font-bold text-body">
+						<div className="text-[13.5px] font-black text-heading">
 							{compare ? 'Method comparison' : 'Quantity preview'}
 						</div>
 						<div className="text-[11.5px] text-muted mt-0.5">
@@ -486,7 +486,7 @@ export default function MethodPicker({ lines, onApply }) {
 						<button
 							onClick={runPreview}
 							disabled={!isValid || busy || allocatable.length === 0}
-							className="h-[38px] px-4 rounded border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+							className="h-[38px] px-4 rounded-lg border border-line-2 bg-surface text-body-2 font-bold text-[13px] cursor-pointer shadow-card disabled:opacity-40 disabled:cursor-not-allowed hover:border-brand-300 hover:text-brand-600 flex items-center gap-2 transition-all duration-200 ease-smooth">
 							{busy && (
 								<span className="w-3.5 h-3.5 border-2 border-muted-4 border-t-body-3 rounded-full animate-spin" />
 							)}
@@ -500,7 +500,7 @@ export default function MethodPicker({ lines, onApply }) {
 						{preview && !compare && (
 							<button
 								onClick={() => apply(preview.methods[0])}
-								className="h-[38px] px-4 rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer shadow-[0_1px_2px_rgba(64,141,251,.35)]">
+								className="h-[38px] px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px transition-all duration-200 ease-smooth animate-pop-in">
 								Use these quantities
 							</button>
 						)}
@@ -522,7 +522,7 @@ export default function MethodPicker({ lines, onApply }) {
 					</div>
 				)}
 				{error && (
-					<div className="text-[12px] text-danger bg-red-50 border border-danger-border rounded px-3 py-2 mt-2.5">
+					<div className="text-[12px] text-danger bg-danger-bg border border-danger-border rounded-lg px-3 py-2 mt-2.5">
 						{error}
 					</div>
 				)}
@@ -531,7 +531,7 @@ export default function MethodPicker({ lines, onApply }) {
 					.map((m) => (
 						<div
 							key={m.id}
-							className="text-[12px] text-warn-2 bg-warn-bg border border-warn-border rounded px-3 py-2 mt-2.5">
+							className="text-[12px] text-warn-2 bg-warn-bg border border-warn-border rounded-lg px-3 py-2 mt-2.5">
 							<span className="font-bold">
 								{m.n}. {m.name}:
 							</span>{' '}
@@ -540,7 +540,7 @@ export default function MethodPicker({ lines, onApply }) {
 					))}
 
 				{preview && (
-					<div className="mt-3 border border-line rounded overflow-hidden bg-surface">
+					<div className="mt-3 border border-line rounded-xl overflow-hidden bg-surface shadow-card animate-fade-up">
 						<div className="flex items-center justify-between px-3.5 py-2 bg-surface-2 border-b border-line">
 							<span className="text-[11.5px] text-muted">
 								Read-only — nothing is saved until you create the PO.
@@ -555,7 +555,7 @@ export default function MethodPicker({ lines, onApply }) {
 						<div className="max-h-[320px] overflow-auto">
 							<div
 								style={{ gridTemplateColumns: gridCols }}
-								className="grid bg-surface-2 border-b border-line text-[10px] font-bold text-muted tracking-[.04em]">
+								className="grid bg-surface-2 border-b border-line text-[10px] font-black text-muted tracking-[.06em] sticky top-0 z-10">
 								<div className="px-3 py-1.5">ITEM</div>
 								<div className="px-3 py-1.5 text-right">ON HAND</div>
 								<div className="px-3 py-1.5 text-right">MAX</div>
@@ -578,7 +578,7 @@ export default function MethodPicker({ lines, onApply }) {
 								<div
 									key={r.key}
 									style={{ gridTemplateColumns: gridCols }}
-									className="grid border-b border-line-4 text-[12.5px] text-body-3">
+									className="grid border-b border-line-4 text-[12.5px] text-body-3 hover:bg-brand-50/50 transition-colors duration-150">
 									<div className="px-3 py-1.5 truncate">{r.name}</div>
 									<div className="num px-3 py-1.5 text-right">{nf(r.onHand)}</div>
 									<div className="num px-3 py-1.5 text-right">{nf(r.max)}</div>
@@ -605,7 +605,7 @@ export default function MethodPicker({ lines, onApply }) {
 							{/* Totals, and — when comparing — the way to take a column. */}
 							<div
 								style={{ gridTemplateColumns: gridCols }}
-								className="grid bg-surface-2 border-t border-line text-[11.5px] font-bold text-body">
+								className="grid bg-surface-2 border-t border-line text-[11.5px] font-black text-heading sticky bottom-0">
 								<div className="px-3 py-2">TOTAL</div>
 								<div />
 								<div />
@@ -618,7 +618,7 @@ export default function MethodPicker({ lines, onApply }) {
 										{compare && (
 											<button
 												onClick={() => apply(m)}
-												className="mt-1 h-[26px] px-2.5 rounded border border-brand bg-brand text-white font-bold text-[11px] cursor-pointer">
+												className="mt-1 h-[26px] px-2.5 rounded-md border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[11px] cursor-pointer shadow-brand hover:shadow-brand-hover">
 												Use
 											</button>
 										)}
@@ -648,7 +648,7 @@ function Knob({ label, hint, value, onChange, ...rest }) {
 				type="number"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-brand"
+				className="num w-full h-[38px] border border-line-2 rounded-lg px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 				{...rest}
 			/>
 			{hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}

@@ -271,7 +271,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 					<button
 						onClick={close}
 						aria-label="Close"
-						className="w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50 flex-shrink-0">
+						className="w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-danger-bg flex-shrink-0">
 						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
 							<path d="M6 6l12 12M18 6L6 18" />
 						</svg>
@@ -349,7 +349,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 										</svg>
 									</button>
 									{typeOpen && (
-										<div className="absolute top-7 left-0 z-20 min-w-[190px] bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.16)] overflow-hidden">
+										<div className="absolute top-7 left-0 z-20 min-w-[190px] animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
 											{TYPE_KEYS.map((k) => (
 												<button
 													key={k}
@@ -361,7 +361,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 													}}
 													className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer border-none ${
 														k === type
-															? 'bg-brand text-white font-bold'
+															? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white font-black'
 															: 'bg-surface text-body hover:bg-surface-2'
 													}`}>
 													{TRANSACTION_TYPES[k].label}
@@ -384,7 +384,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 										</svg>
 									</button>
 									{statusOpen && (
-										<div className="absolute top-6 right-0 z-20 min-w-[160px] bg-surface border border-[#e0e3e7] rounded shadow-[0_10px_30px_rgba(20,30,50,.16)] overflow-hidden">
+										<div className="absolute top-6 right-0 z-20 min-w-[160px] animate-slide-down bg-surface border border-line-2 rounded-xl shadow-pop overflow-hidden">
 											{cfg.statuses.map(([value, label]) => (
 												<button
 													key={value || 'all'}
@@ -395,7 +395,7 @@ export default function ItemDetailsPanel({ itemId, itemName, vendorId, onClose }
 													}}
 													className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer border-none ${
 														value === status
-															? 'bg-brand text-white font-bold'
+															? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white font-black'
 															: 'bg-surface text-body hover:bg-surface-2'
 													}`}>
 													{label}

@@ -57,10 +57,10 @@ const CREDIT = new Set(['creditnotes', 'vendorcredits']);
 function statusTone(status) {
 	const s = String(status || '').toLowerCase();
 	if (['paid', 'closed', 'billed'].includes(s)) {
-		return 'bg-green-50 text-ok border-green-200';
+		return 'bg-ok-bg text-ok border-ok-border';
 	}
 	if (['overdue', 'void', 'cancelled'].includes(s)) {
-		return 'bg-red-50 text-danger border-danger-border';
+		return 'bg-danger-bg text-danger border-danger-border';
 	}
 	if (['open', 'unpaid', 'partially_paid', 'partially_billed', 'issued'].includes(s)) {
 		return 'bg-warn-bg text-warn-2 border-warn-border';
@@ -211,7 +211,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 				) : (
 					<>
 						{/* What it is, and what it came to */}
-						<div className="bg-surface border border-line rounded px-5 py-4">
+						<div className="bg-surface border border-line rounded-xl px-5 py-4 shadow-card">
 							<div className="flex items-start justify-between gap-5 flex-wrap">
 								<div className="min-w-0">
 									<div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 								)}
 							</div>
 
-							<div className="w-[320px] max-w-full bg-surface border border-line rounded px-4 py-3">
+							<div className="w-[320px] max-w-full bg-surface border border-line rounded-xl px-4 py-3 shadow-card">
 								<Total
 									label={
 										doc?.is_inclusive_tax ? 'Sub Total (tax inclusive)' : 'Sub Total'
@@ -390,7 +390,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 						</div>
 
 						{doc?.notes && (
-							<div className="mt-4 bg-surface border border-line rounded px-4 py-3">
+							<div className="mt-4 bg-surface border border-line rounded-xl px-4 py-3 shadow-card">
 								<div className="text-[10.5px] font-bold text-muted tracking-[.04em] mb-1">
 									NOTES
 								</div>
@@ -408,7 +408,7 @@ export default function TransactionDocument({ type, docId, number, onBack }) {
 
 function Party({ label, name, lines, phone, pan, gstin }) {
 	return (
-		<div className="bg-surface border border-line rounded px-4 py-3 min-w-0">
+		<div className="bg-surface border border-line rounded-xl px-4 py-3 shadow-card min-w-0">
 			<div className="text-[10.5px] font-bold text-muted tracking-[.04em] mb-1">
 				{String(label).toUpperCase()}
 			</div>

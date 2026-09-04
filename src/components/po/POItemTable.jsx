@@ -62,10 +62,10 @@ export default function POItemTable({
 
 	return (
 		<div>
-		<div className="bg-surface border border-line rounded overflow-visible mr-[86px]">
-			<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-[10px]">
-				<div className="font-bold text-[14px] text-body">Item Table</div>
-				<div className="num text-[12.5px] text-body-3">
+		<div className="bg-surface border border-line rounded-xl overflow-visible mr-[86px] shadow-card">
+			<div className="flex items-center justify-between px-[18px] py-[13px] bg-surface-2 border-b border-line rounded-t-xl">
+				<div className="font-black text-[14px] text-heading">Item Table</div>
+				<div className="num text-[12.5px] font-bold text-body-3">
 					{filledCount} line{filledCount !== 1 ? 's' : ''}
 					{showRate ? ` · ${money(grandTotal)}` : ''}
 				</div>
@@ -73,7 +73,7 @@ export default function POItemTable({
 
 			{/* Header */}
 			<div
-				className="grid bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em]"
+				className="grid bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em]"
 				style={{ gridTemplateColumns: cols }}>
 				<div className="px-3.5 py-2.5 border-r border-line min-w-0">ITEM DETAILS</div>
 				<div className="px-3.5 py-2.5 border-r border-line text-right min-w-0">
@@ -128,7 +128,7 @@ export default function POItemTable({
 		<div className="mr-[86px] mt-3 flex items-center justify-between gap-3 flex-wrap">
 			<button
 				onClick={onOpenBulk}
-				className="flex items-center gap-[7px] h-9 px-3.5 rounded border border-brand-border bg-brand-bg text-link font-bold text-[13px] cursor-pointer">
+				className="flex items-center gap-[7px] h-9 px-3.5 rounded-lg border border-brand-200 bg-brand-50 text-brand-600 font-bold text-[13px] cursor-pointer hover:bg-brand-100 hover:border-brand-300 transition-all duration-200 ease-smooth">
 				<PlusCircle />
 				Add Items in Bulk
 			</button>
@@ -138,7 +138,7 @@ export default function POItemTable({
 			    quantity column rather than the table's outer rule. */}
 			<div className="text-[12.5px] text-muted pr-6">
 				Total Quantity{' '}
-				<span className="num text-muted-2 ml-1">
+				<span className="num font-black text-body-2 ml-1">
 					{totalQty.toLocaleString('en-IN')}
 				</span>
 			</div>
@@ -176,18 +176,18 @@ function POLineRow({
 	// (a filled item cell carries three lines). Padding keeps content top-aligned.
 	return (
 		<div
-			className="grid border-b border-line items-stretch relative"
+			className="group grid border-b border-line items-stretch relative bg-surface hover:bg-brand-50/40 transition-colors duration-150"
 			style={{ gridTemplateColumns: cols }}>
 			{/* ITEM DETAILS */}
 			<div className="px-3.5 py-3 border-r border-line relative min-w-0">
 				{line.item_id || line.isFreeText ? (
 					<div className="pl-2.5">
 						<div className="flex items-center gap-[7px] flex-wrap">
-							<span className="font-bold text-[13.5px] text-body">
+							<span className="font-black text-[13.5px] text-heading">
 								{line.name}
 							</span>
 							{line.isFreeText && (
-								<span className="text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-[20px] px-2 py-px">
+								<span className="text-[10px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-2 py-px">
 									new
 								</span>
 							)}
@@ -244,7 +244,7 @@ function POLineRow({
 					min="0"
 					value={line.quantity}
 					onChange={(e) => set({ quantity: e.target.value })}
-					className="num w-full min-w-0 h-[34px] border border-line rounded px-2.5 text-right text-[13.5px] outline-none focus:border-brand"
+					className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 				/>
 			</div>
 
@@ -259,7 +259,7 @@ function POLineRow({
 							value={line.poRate}
 							onChange={(e) => set({ poRate: e.target.value })}
 							placeholder="0.00"
-							className="num w-full min-w-0 h-[34px] border border-line rounded px-2.5 text-right text-[13.5px] outline-none focus:border-brand"
+							className="num w-full min-w-0 h-[34px] border border-line-2 rounded-lg px-2.5 text-right text-[13.5px] outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand focus:shadow-[0_0_0_3px_rgba(64,141,251,.14)]"
 						/>
 					</div>
 
@@ -284,7 +284,7 @@ function POLineRow({
 					onClick={() => onViewDetails(line)}
 					title="View item details"
 					aria-label={`View details for ${line.name || 'this line'}`}
-					className="absolute right-[-76px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 hover:bg-brand-bg hover:border-brand hover:text-link">
+					className="absolute right-[-76px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 reveal-on-hover hover:bg-brand-50 hover:border-brand-300 hover:text-brand-600">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 						<path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
 						<path d="M8 12h8M8 16h5" />
@@ -297,7 +297,7 @@ function POLineRow({
 					onClick={() => onRemoveLine(line.key)}
 					title="Remove line"
 					aria-label={`Remove ${line.name || 'this line'}`}
-					className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer text-danger hover:bg-red-50">
+					className="absolute right-[-38px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-md border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-body-3 reveal-on-hover hover:bg-danger-bg hover:border-danger-border hover:text-danger">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
 						<path d="M3 6h18" />
 						<path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />

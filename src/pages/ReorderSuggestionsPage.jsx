@@ -9,7 +9,7 @@ import {
 } from '../lib/reorderRun';
 import UndoToast from '../components/UndoToast';
 
-const COLS = 'minmax(0,2.4fr) minmax(0,1.6fr) minmax(0,1.6fr) 130px';
+const COLS = 'minmax(0,2.4fr) minmax(0,1.7fr) minmax(0,1.7fr) 130px';
 const UNDO_WINDOW = 5000;
 
 // §B.6's three tiers, as a filling meter: red, amber, then green as the
@@ -55,7 +55,7 @@ function ConfidenceBar({ level }) {
 			{Array.from({ length: CONFIDENCE_SEGMENTS }, (_, i) => (
 				<span
 					key={i}
-					className={`w-[9px] h-[7px] rounded-[2px] ${
+					className={`w-[10px] h-[7px] rounded-[2px] transition-colors duration-200 ${
 						i < cfg.filled ? cfg.fill : 'bg-line-3'
 					}`}
 				/>
@@ -148,12 +148,27 @@ export default function ReorderSuggestionsPage() {
 		return { approved, pending, rejected };
 	}, [status]);
 
+	// How far through the review you are. With decisions arriving one row at a
+	// time, a bar closing on full is the clearest statement of "nearly done".
+	const reviewed = counts.approved + counts.rejected;
+	const reviewTotal = suggestions ? suggestions.length : 0;
+
+	const progressPct = progress?.total
+		? (progress.done / progress.total) * 100
+		: 0;
+
 	return (
-		<div className="px-7 pt-[22px] pb-20">
+		<div className="px-7 pt-6 pb-20 max-w-[1400px]">
 			{/* Title row */}
-			<div className="flex items-center gap-3.5 mb-4 flex-wrap">
-				<div className="text-[20px] font-bold text-heading">
-					Reorder point suggestions
+			<div className="flex items-end gap-3.5 mb-5 flex-wrap">
+				<div className="min-w-0">
+					<h1 className="text-[23px] font-black text-heading tracking-[-.02em] m-0">
+						Reorder point suggestions
+					</h1>
+					<p className="text-[13px] text-muted-2 m-0 mt-1">
+						Proposed reorder points and capacities, from a year of sales and
+						your logged lost sales.
+					</p>
 				</div>
 				<div className="flex-1" />
 
@@ -161,57 +176,109 @@ export default function ReorderSuggestionsPage() {
 					<button
 						onClick={compute}
 						disabled={busy}
-						className="h-9 px-[13px] rounded border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer disabled:opacity-50">
+						className="h-9 px-3.5 rounded-lg border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer shadow-card disabled:opacity-50 hover:border-brand-300 hover:text-brand-600 transition-all duration-200 ease-smooth flex items-center gap-1.5">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+							<path d="M21 12a9 9 0 1 1-3-6.7" />
+							<path d="M21 3v6h-6" />
+						</svg>
 						Recompute
 					</button>
 				)}
 				<button
 					onClick={suggestions ? approveAll : compute}
 					disabled={busy || (suggestions && counts.pending === 0)}
-					className="h-9 px-[18px] rounded border border-brand bg-brand text-white font-bold text-[13px] cursor-pointer shadow-[0_1px_2px_rgba(64,141,251,.35)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+					className="h-9 px-[18px] rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center gap-2 transition-all duration-200 ease-smooth">
 					{busy && (
 						<span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
 					)}
 					{busy
 						? 'Computing…'
 						: suggestions
-							? 'Approve all'
+							? `Approve all${counts.pending ? ` (${counts.pending})` : ''}`
 							: 'Compute suggestions'}
 				</button>
 			</div>
 
 			{progress && (
-				<div className="mb-4 max-w-[760px]">
-					<div className="flex justify-between items-center mb-1.5">
-						<span className="text-[12.5px] text-muted">
-							Reading 365-day sales for each item. This keeps running if you
-							go elsewhere.
+				<div className="mb-4 max-w-[760px] bg-surface border border-line rounded-xl px-[18px] py-3.5 shadow-card">
+					<div className="flex justify-between items-center gap-4 mb-2">
+						<span className="text-[12.5px] text-body-3 flex items-center gap-2 min-w-0">
+							<span className="relative flex w-2 h-2 flex-shrink-0">
+								<span className="absolute inset-0 rounded-full bg-brand animate-halo" />
+								<span className="relative w-2 h-2 rounded-full bg-brand" />
+							</span>
+							<span className="truncate">
+								Reading 365-day sales for each item. This keeps running if you
+								go elsewhere.
+							</span>
 						</span>
-						<span className="text-[12.5px] font-bold text-body-3 num">
+						<span className="text-[12.5px] font-black text-body-3 num flex-shrink-0">
 							{progress.done} / {progress.total}
 						</span>
 					</div>
-					<div className="relative w-full h-[3px] bg-line-4 rounded-full overflow-hidden">
+					<div className="relative w-full h-[4px] bg-line-4 rounded-full overflow-hidden">
 						<div
-							className="h-full bg-brand rounded-full transition-all"
-							style={{
-								width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`,
-							}}
+							className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-[width] duration-300 ease-smooth"
+							style={{ width: `${progressPct}%` }}
 						/>
 					</div>
 				</div>
 			)}
 
 			{error && (
-				<div className="px-4 py-2.5 mb-4 rounded border bg-red-50 border-danger-border text-danger text-[13px] max-w-[760px]">
+				<div className="px-4 py-3 mb-4 rounded-xl border bg-danger-bg border-danger-border text-danger text-[13px] max-w-[760px] shadow-card">
 					{error}
 				</div>
 			)}
 
+			{/* Review progress — only once there is a list to get through. */}
+			{suggestions && suggestions.length > 0 && (
+				<div className="flex items-center gap-4 mb-4 px-[18px] py-3 bg-surface border border-line rounded-xl shadow-card max-w-[760px]">
+					<div className="flex-1 min-w-0">
+						<div className="flex items-center justify-between mb-1.5 text-[12px]">
+							<span className="font-black text-body-2">Review progress</span>
+							<span className="num text-muted">
+								{reviewed} of {reviewTotal}
+							</span>
+						</div>
+						<div className="w-full h-[6px] bg-line-4 rounded-full overflow-hidden flex">
+							<div
+								className="h-full bg-ok transition-[width] duration-300 ease-smooth"
+								style={{
+									width: `${reviewTotal ? (counts.approved / reviewTotal) * 100 : 0}%`,
+								}}
+							/>
+							<div
+								className="h-full bg-danger/70 transition-[width] duration-300 ease-smooth"
+								style={{
+									width: `${reviewTotal ? (counts.rejected / reviewTotal) * 100 : 0}%`,
+								}}
+							/>
+						</div>
+					</div>
+					<div className="flex items-center gap-3.5 flex-shrink-0 text-[12px] font-bold">
+						<span className="flex items-center gap-1.5 text-ok">
+							<span className="w-2 h-2 rounded-full bg-ok" />
+							<span className="num">{counts.approved}</span> approved
+						</span>
+						<span className="flex items-center gap-1.5 text-muted">
+							<span className="w-2 h-2 rounded-full bg-muted-4" />
+							<span className="num">{counts.pending}</span> pending
+						</span>
+						{counts.rejected > 0 && (
+							<span className="flex items-center gap-1.5 text-danger">
+								<span className="w-2 h-2 rounded-full bg-danger/70" />
+								<span className="num">{counts.rejected}</span> rejected
+							</span>
+						)}
+					</div>
+				</div>
+			)}
+
 			{/* Table */}
-			<div className="bg-surface border border-line rounded overflow-hidden">
+			<div className="bg-surface border border-line rounded-xl overflow-hidden shadow-card">
 				<div
-					className="grid px-5 py-3 bg-surface-2 border-b border-line text-[10.5px] font-bold text-muted tracking-[.04em]"
+					className="grid px-5 py-3 bg-surface-2 border-b border-line text-[10.5px] font-black text-muted tracking-[.06em]"
 					style={{ gridTemplateColumns: COLS }}>
 					<div>ITEM</div>
 					<div>REORDER POINT</div>
@@ -220,8 +287,18 @@ export default function ReorderSuggestionsPage() {
 				</div>
 
 				{suggestions === null ? (
-					<div className="px-5 py-14 text-center">
-						<div className="text-[14px] font-bold text-heading mb-1">
+					<div className="px-5 py-16 text-center">
+						<div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 mx-auto mb-3.5 flex items-center justify-center">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#408dfb" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+								<path d="M4 6h11" />
+								<circle cx="18" cy="6" r="2" />
+								<path d="M4 12h5" />
+								<circle cx="12" cy="12" r="2" />
+								<path d="M4 18h11" />
+								<circle cx="18" cy="18" r="2" />
+							</svg>
+						</div>
+						<div className="text-[14.5px] font-black text-heading mb-1">
 							Nothing computed yet
 						</div>
 						<p className="text-[13px] text-muted-2 m-0 max-w-[520px] mx-auto leading-relaxed">
@@ -229,17 +306,37 @@ export default function ReorderSuggestionsPage() {
 							and the lost sales you have logged. That is one report call per
 							item, so it runs only when you ask.
 						</p>
+						<button
+							onClick={compute}
+							disabled={busy}
+							className="mt-4 h-9 px-4 rounded-lg border border-brand bg-gradient-to-b from-brand-400 to-brand-600 text-white font-bold text-[13px] cursor-pointer shadow-brand hover:shadow-brand-hover disabled:opacity-40">
+							Compute suggestions
+						</button>
 					</div>
 				) : visible.length === 0 ? (
-					<div className="px-5 py-14 text-center">
-						<div className="text-[14px] font-bold text-heading mb-1">
+					<div className="px-5 py-16 text-center">
+						<div
+							className={`w-14 h-14 rounded-2xl mx-auto mb-3.5 flex items-center justify-center border ${
+								busy
+									? 'bg-brand-50 border-brand-100'
+									: 'bg-ok-bg border-ok-border'
+							}`}>
+							{busy ? (
+								<span className="w-5 h-5 border-2 border-brand-200 border-t-brand rounded-full animate-spin" />
+							) : (
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a9d54" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+									<path d="M20 6L9 17l-5-5" />
+								</svg>
+							)}
+						</div>
+						<div className="text-[14.5px] font-black text-heading mb-1">
 							{busy
 								? 'Working…'
 								: suggestions.length === 0
 									? 'No changes worth making'
 									: 'All suggestions reviewed'}
 						</div>
-						<p className="text-[13px] text-muted-2 m-0">
+						<p className="text-[13px] text-muted-2 m-0 max-w-[520px] mx-auto leading-relaxed">
 							{busy
 								? 'No suggestions yet. Rows appear here as they are found.'
 								: suggestions.length === 0
@@ -248,71 +345,65 @@ export default function ReorderSuggestionsPage() {
 						</p>
 					</div>
 				) : (
-					visible.map((s) => (
-						<div
-							key={s.item_id}
-							className="grid px-5 py-[15px] border-b border-line-4 items-center bg-surface"
-							style={{ gridTemplateColumns: COLS }}>
-							<div className="pr-4 min-w-0">
-								<div className="font-bold text-[14px] text-body truncate">
-									{s.item_name}
+					<div className="stagger">
+						{visible.map((s, i) => (
+							<div
+								key={s.item_id}
+								className="group grid px-5 py-[15px] border-b border-line-4 items-center bg-surface hover:bg-brand-50/50 transition-colors duration-150"
+								style={{ gridTemplateColumns: COLS, '--i': Math.min(i, 20) }}>
+								<div className="pr-4 min-w-0">
+									<div className="font-black text-[14px] text-heading truncate">
+										{s.item_name}
+									</div>
+									<div className="flex items-center gap-2 mt-1 min-w-0">
+										<ConfidenceBar level={s.confidence} />
+										<span
+											className="text-[11.5px] text-muted-2 truncate"
+											title={s.reason}>
+											{subLineFor(s)}
+										</span>
+									</div>
 								</div>
-								<div className="flex items-center gap-2 mt-[3px] min-w-0">
-									<span
-										className="text-[11.5px] text-muted-2 truncate"
-										title={s.reason}>
-										{subLineFor(s)}
-									</span>
-									<ConfidenceBar level={s.confidence} />
+
+								<Pair prev={s.current_rop} next={s.proposed_rop} />
+								<Pair prev={s.current_max} next={s.proposed_max} />
+
+								<div className="flex items-center justify-end gap-2">
+									<button
+										onClick={() => decide(s, 'approved')}
+										title="Approve"
+										aria-label={`Approve ${s.item_name}`}
+										className="w-[34px] h-[34px] rounded-lg border border-ok-border bg-ok-bg flex items-center justify-center cursor-pointer text-ok hover:bg-ok hover:text-white hover:border-ok hover:scale-105 transition-all duration-150 ease-smooth">
+										<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+											<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+										</svg>
+									</button>
+									<button
+										onClick={() => decide(s, 'rejected')}
+										title="Reject"
+										aria-label={`Reject ${s.item_name}`}
+										className="w-[34px] h-[34px] rounded-lg border border-line-2 bg-surface flex items-center justify-center cursor-pointer text-muted hover:bg-danger hover:text-white hover:border-danger hover:scale-105 transition-all duration-150 ease-smooth">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+											<path d="M6 6l12 12M18 6L6 18" />
+										</svg>
+									</button>
 								</div>
 							</div>
-
-							<Pair prev={s.current_rop} next={s.proposed_rop} />
-							<Pair prev={s.current_max} next={s.proposed_max} />
-
-							<div className="flex items-center justify-end gap-2">
-								<button
-									onClick={() => decide(s, 'approved')}
-									title="Approve"
-									aria-label={`Approve ${s.item_name}`}
-									className="w-[34px] h-[34px] rounded border border-[#bfe5cf] bg-[#e7f6ee] flex items-center justify-center cursor-pointer hover:brightness-95">
-									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a9d54" strokeWidth="2.6">
-										<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-									</svg>
-								</button>
-								<button
-									onClick={() => decide(s, 'rejected')}
-									title="Reject"
-									aria-label={`Reject ${s.item_name}`}
-									className="w-[34px] h-[34px] rounded border border-danger-border bg-surface flex items-center justify-center cursor-pointer hover:bg-red-50">
-									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e0322b" strokeWidth="2.4" strokeLinecap="round">
-										<path d="M6 6l12 12M18 6L6 18" />
-									</svg>
-								</button>
-							</div>
-						</div>
-					))
+						))}
+					</div>
 				)}
-			</div>
-
-			<div className="flex justify-between items-center mt-4 text-[13px] text-muted gap-4 flex-wrap">
-				<span className="num">
-					{suggestions
-						? `${counts.approved} approved · ${counts.pending} pending${counts.rejected > 0 ? ` · ${counts.rejected} rejected` : ''}`
-						: ''}
-				</span>
 			</div>
 
 			{/* The decisions are not yet written anywhere, and saying so is the
 			    difference between a review screen and a misleading one. */}
 			{suggestions && suggestions.length > 0 && (
-				<div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded border border-warn-border bg-warn-bg text-warn-2 max-w-[760px]">
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mt-px">
+				<div className="mt-4 flex items-start gap-3 px-4 py-3.5 rounded-xl border border-warn-border bg-warn-bg text-warn-2 max-w-[760px] shadow-card">
+					<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mt-px">
 						<circle cx="12" cy="12" r="9" />
 						<path d="M12 8v5M12 16h.01" />
 					</svg>
 					<div className="text-[12.5px] leading-relaxed">
-						<span className="font-bold">Approving does not update Zoho yet.</span>{' '}
+						<span className="font-black">Approving does not update Zoho yet.</span>{' '}
 						The figures are real, but write-back is not built — decisions are
 						kept only until you leave this page. Confidence reads low on every
 						row because there is no daily stock history to correct demand for
@@ -352,18 +443,33 @@ function Pair({ prev, next }) {
 	const up = to > prev;
 
 	return (
-		<div className="flex items-center gap-[11px] pr-4 min-w-0">
-			<span className="num text-[15px] text-muted-2">{prev}</span>
-			<svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4c9d0" strokeWidth="2" className="flex-shrink-0">
+		<div className="flex items-center gap-2.5 pr-4 min-w-0">
+			<span className="num text-[14px] text-muted-2 tabular-nums">{prev}</span>
+			<svg
+				width="16"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2.2"
+				className={`flex-shrink-0 transition-colors ${same ? 'text-line-2' : 'text-brand-300'}`}>
 				<path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
 			</svg>
+			{/* The proposed figure is the row's answer, so it is set as a chip —
+			    a value you can act on rather than another number in a line. */}
 			<span
-				className={`num text-[17px] font-black ${same ? 'text-muted-2' : 'text-link'}`}>
+				className={`num inline-flex items-center px-2 py-[3px] rounded-md text-[15px] font-black ${
+					same
+						? 'text-muted-2'
+						: 'bg-brand-50 border border-brand-100 text-brand-700'
+				}`}>
 				{to}
 			</span>
 			{!same && (
 				<span
-					className={`text-[11px] font-bold ${up ? 'text-ok' : 'text-danger'}`}>
+					className={`num text-[11px] font-black px-1.5 py-px rounded ${
+						up ? 'text-ok bg-ok-bg' : 'text-danger bg-danger-bg'
+					}`}>
 					{up ? `+${to - prev}` : `−${prev - to}`}
 				</span>
 			)}
