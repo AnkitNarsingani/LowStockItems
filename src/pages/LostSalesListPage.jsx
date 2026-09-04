@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { listLostSales, deleteLostSale } from '../lib/lostSales';
 import Pagination from '../components/Pagination';
@@ -13,15 +14,6 @@ const itemNames = (r) =>
 	itemsOf(r)
 		.map((it) => it.item_name || '—')
 		.join(', ');
-
-// The full list, one per line, for the cell's tooltip — the row itself shows
-// as much as fits on its single line.
-const itemDetail = (r) =>
-	itemsOf(r)
-		.map((it) =>
-			it.qty_wanted == null ? it.item_name : `${it.item_name} × ${it.qty_wanted}`,
-		)
-		.join('\n');
 
 // Quantity is optional per item, so a record can legitimately total nothing.
 // null means "none were given", which reads as — rather than 0.
@@ -273,7 +265,7 @@ export default function LostSalesListPage() {
 
 			{/* Toolbar */}
 			<div className="flex items-center gap-2.5 mb-3.5 flex-wrap">
-				<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-all duration-200 ease-smooth focus-within:border-brand">
+				<div className="group flex items-center gap-2 border border-line-2 rounded bg-surface px-[11px] h-9 w-72 max-w-full transition-all duration-200 ease-smooth focus-within:border-muted-3">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-muted-3 transition-colors group-focus-within:text-brand">
 						<circle cx="11" cy="11" r="7" />
 						<path d="M21 21l-4-4" strokeLinecap="round" />
@@ -410,29 +402,11 @@ export default function LostSalesListPage() {
 										</span>
 									</div>
 
-									{/* Every item the customer asked for, on the record's one row.
-									    The names are truncated to keep the row a single line; the
-									    tooltip carries the full list with quantities. */}
-									<div
-										className="min-w-0 flex items-center gap-1.5"
-										title={itemDetail(r)}>
-										<span className="text-body-2 truncate">
-											{itemNames(r) || '—'}
-										</span>
-										{itemsOf(r).length > 1 ? (
-											<span
-												className="flex-shrink-0 text-[10px] font-black text-brand-700 bg-brand-100 rounded-full px-1.5 py-px num"
-												title={`${itemsOf(r).length} items on this record`}>
-												{itemsOf(r).length}
-											</span>
-										) : (
-											itemsOf(r)[0]?.is_free_text && (
-												<span className="flex-shrink-0 text-[10px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-1.5 py-px">
-													new
-												</span>
-											)
-										)}
-									</div>
+								{/* One name on the row; the rest sit behind a +N bubble that
+								    opens a hover card. The native tooltip could not carry a
+								    list, and the table clips its own children, so the card is
+								    portalled and positioned against the bubble. */}
+									<ItemsCell record={r} />
 
 									<div className="num text-right pr-2.5">
 										{qtyTotal(r) == null ? (
@@ -504,6 +478,90 @@ export default function LostSalesListPage() {
 						onPageSizeChange={setPageSize}
 					/>
 				</div>
+			)}
+		</div>
+	);
+}
+
+/**
+ * The items on a record: the first name, then a +N bubble carrying the rest.
+ *
+ * The card is rendered into <body> and placed from the bubble's own rect.
+ * Two reasons it cannot be a plain absolutely-positioned child: the table
+ * clips its children to keep its rounded corners, and rows near the foot of
+ * the page would push the card off-screen. Placing it by hand also lets it
+ * flip above the bubble when there is no room below.
+ */
+function ItemsCell({ record }) {
+	const items = itemsOf(record);
+	const [card, setCard] = useState(null);
+	const bubbleRef = useRef(null);
+
+	const extra = items.length - 1;
+
+	const open = () => {
+		const el = bubbleRef.current;
+		if (!el) return;
+		const r = el.getBoundingClientRect();
+		// Flip above when the card would not clear the bottom of the window.
+		const estimated = 44 + items.length * 24;
+		const below = window.innerHeight - r.bottom;
+		setCard({
+			left: r.left + r.width / 2,
+			top: below < estimated ? r.top - 8 : r.bottom + 8,
+			flip: below < estimated,
+		});
+	};
+
+	return (
+		<div className="min-w-0 flex items-center gap-1.5">
+			<span className="text-body-2 truncate">
+				{items[0]?.item_name || '—'}
+			</span>
+
+			{extra > 0 ? (
+				<>
+					<span
+						ref={bubbleRef}
+						onMouseEnter={open}
+						onMouseLeave={() => setCard(null)}
+						className="flex-shrink-0 text-[10px] font-black text-brand-700 bg-brand-100 rounded-full px-1.5 py-px num cursor-default">
+						+{extra}
+					</span>
+
+					{card &&
+						createPortal(
+							<div
+								style={{
+									position: 'fixed',
+									left: card.left,
+									top: card.top,
+									transform: `translate(-50%, ${card.flip ? '-100%' : '0'})`,
+								}}
+								className="z-[120] pointer-events-none animate-fade-in min-w-[220px] max-w-[340px] bg-heading text-white rounded shadow-float px-3 py-2.5">
+								<div className="text-[10px] font-black tracking-[.06em] text-white/55 mb-1.5">
+									{items.length} ITEMS WANTED
+								</div>
+								{items.map((it, i) => (
+									<div
+										key={i}
+										className="flex items-baseline justify-between gap-3 py-[3px] text-[12.5px]">
+										<span className="truncate">{it.item_name || '—'}</span>
+										<span className="num flex-shrink-0 font-bold text-white/70">
+											{it.qty_wanted == null ? '—' : it.qty_wanted}
+										</span>
+									</div>
+								))}
+							</div>,
+							document.body,
+						)}
+				</>
+			) : (
+				items[0]?.is_free_text && (
+					<span className="flex-shrink-0 text-[10px] font-black text-warn-2 bg-warn-bg border border-warn-border rounded-full px-1.5 py-px">
+						new
+					</span>
+				)
 			)}
 		</div>
 	);

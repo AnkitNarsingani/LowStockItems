@@ -244,7 +244,7 @@ function POLineRow({
 					min="0"
 					value={line.quantity}
 					onChange={(e) => set({ quantity: e.target.value })}
-					className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+					className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
 				/>
 			</div>
 
@@ -259,7 +259,7 @@ function POLineRow({
 							value={line.poRate}
 							onChange={(e) => set({ poRate: e.target.value })}
 							placeholder="0.00"
-							className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+							className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
 						/>
 					</div>
 

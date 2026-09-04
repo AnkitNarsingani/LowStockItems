@@ -90,7 +90,7 @@ export default function AdvancedCustomerSearch({
 					<select
 						value={field}
 						onChange={(e) => setField(e.target.value)}
-						className="h-[38px] border border-line-2 rounded px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-brand">
+						className="h-[38px] border border-line-2 rounded px-2.5 text-[13.5px] bg-surface text-body outline-none cursor-pointer focus:border-muted-3">
 						{FIELDS.map((f) => (
 							<option key={f.id} value={f.id}>
 								{f.label}
@@ -104,7 +104,7 @@ export default function AdvancedCustomerSearch({
 						onKeyDown={(e) => e.key === 'Enter' && runSearch()}
 						placeholder="Search"
 						autoFocus
-						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-brand"
+						className="flex-1 min-w-[200px] h-[38px] border border-line-2 rounded px-3 text-[13.5px] outline-none focus:border-muted-3"
 					/>
 
 					<button

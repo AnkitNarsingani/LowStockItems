@@ -101,7 +101,7 @@ export default function BulkAddItemsModal({
 					{/* Left — catalogue */}
 					<div className="w-1/2 border-r border-line-3 flex flex-col min-h-0">
 						<div className="px-4 py-3.5">
-							<div className="flex items-center gap-2 border border-line-2 rounded px-[11px] py-[9px] transition-shadow focus-within:border-brand">
+							<div className="flex items-center gap-2 border border-line-2 rounded px-[11px] py-[9px] transition-shadow focus-within:border-muted-3">
 								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a7adb5" strokeWidth="2" className="flex-shrink-0">
 									<circle cx="11" cy="11" r="7" />
 									<path d="M21 21l-4-4" strokeLinecap="round" />

@@ -78,7 +78,6 @@ export default function LostSaleFormPage() {
 	const [customersError, setCustomersError] = useState(null);
 	const [customerId, setCustomerId] = useState(null);
 	const [customerName, setCustomerName] = useState('');
-	const [customerRecord, setCustomerRecord] = useState(null);
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
 	const [allItems, setAllItems] = useState([]);
@@ -193,14 +192,12 @@ export default function LostSaleFormPage() {
 	const pickCustomer = (id, record) => {
 		setCustomerId(id);
 		setCustomerName(record?.contact_name || '');
-		setCustomerRecord(record || null);
 		setErrors((e) => ({ ...e, customer: null }));
 	};
 
 	const addFreeTextCustomer = (text) => {
 		setCustomerId(null);
 		setCustomerName(text);
-		setCustomerRecord(null);
 		setErrors((e) => ({ ...e, customer: null }));
 	};
 
@@ -377,17 +374,6 @@ export default function LostSaleFormPage() {
 
 						{customerId && <ContactDetails contactId={customerId} showShipping={false} />}
 
-						{!customerRecord && customerName && (
-							<div className="mt-2 flex items-center gap-2">
-								<span className="text-[10px] font-bold text-warn-2 bg-warn-bg border border-warn-border rounded-full px-2 py-px">
-									new
-								</span>
-								<span className="text-[12px] text-muted">
-									“{customerName}” is recorded as typed — not linked to a Zoho
-									contact.
-								</span>
-							</div>
-						)}
 					</Field>
 				</div>
 
@@ -506,7 +492,7 @@ export default function LostSaleFormPage() {
 											setQty(r.key, e.target.value);
 											setErrors((x) => ({ ...x, items: null }));
 										}}
-										className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+										className="num w-full min-w-0 h-[34px] border border-line-2 rounded px-2.5 text-right text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
 									/>
 								</div>
 

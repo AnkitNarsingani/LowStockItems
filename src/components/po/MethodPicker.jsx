@@ -129,8 +129,6 @@ export default function MethodPicker({ lines, onApply }) {
 		return set;
 	}, [specs]);
 
-	const pendingEnrich = allocatable.filter((l) => l.enriched === false).length;
-
 	const invalidate = useCallback(() => {
 		setPreview(null);
 		setError(null);
@@ -515,12 +513,6 @@ export default function MethodPicker({ lines, onApply }) {
 						{progress.reused > 0 ? ` · ${progress.reused} reused` : ''}
 					</div>
 				)}
-				{pendingEnrich > 0 && (
-					<div className="text-[11px] text-warn-2 mt-2">
-						Loading full details for {pendingEnrich} newly added item
-						{pendingEnrich !== 1 ? 's' : ''} — preview once that finishes.
-					</div>
-				)}
 				{error && (
 					<div className="text-[12px] text-danger bg-danger-bg border border-danger-border rounded px-3 py-2 mt-2.5">
 						{error}
@@ -648,7 +640,7 @@ function Knob({ label, hint, value, onChange, ...rest }) {
 				type="number"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-brand"
+				className="num w-full h-[38px] border border-line-2 rounded px-3 text-[13.5px] font-bold outline-none bg-surface transition-shadow hover:border-muted-4 focus:border-muted-3"
 				{...rest}
 			/>
 			{hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}
