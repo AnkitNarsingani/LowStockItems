@@ -1,9 +1,41 @@
 [build]
-  command = "npm run build"
+  # Migrations run before the bundle, so the schema can never lag the functions
+  # that depend on it. They are recorded in schema_migrations and applied once,
+  # so repeat builds are no-ops, and a failure fails the build rather than
+  # deploying against a schema that did not apply.
+  #
+  # This runs here because DATABASE_URL is marked secret and Netlify withholds
+  # secret values from `netlify dev` — the build is the only place the real
+  # value exists.
+  command = "node database/migrations/run.mjs && npm run build"
   publish = "build"
   functions = "netlify/functions"
 
-# Makes BrowserRouter work on refresh and direct links (/po/new).
+[build.environment]
+  # Source maps embed the entire application source in the published output.
+  # They are of no use in production, they double what a stranger can read of
+  # the app, and they are a large surface for the secrets scanner to search.
+  GENERATE_SOURCEMAP = "false"
+
+  # Omit ONLY this key from secrets scanning. APP_BASE_URL is the site's own
+  # public address — it is in the browser's address bar of every visitor, so
+  # finding it in build output is expected rather than a leak.
+  #
+  # AUTH_JWT_SECRET and BOOTSTRAP_TOKEN are deliberately NOT omitted, and must
+  # not be: they are real secrets, and the scanner finding either one would be
+  # a genuine incident rather than noise to silence. Scanning stays on.
+  SECRETS_SCAN_OMIT_KEYS = "APP_BASE_URL"
+
+# The API must be matched before the SPA catch-all below, or every /api/*
+# request would be answered with index.html. Netlify evaluates redirects in
+# file order, so this pass-through has to come first.
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+  force = false
+
+# Makes BrowserRouter work on refresh and direct links (/po/new, /settings).
 [[redirects]]
   from = "/*"
   to = "/index.html"

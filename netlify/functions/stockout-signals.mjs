@@ -12,6 +12,8 @@
 // Blobs configuration only for v2 handlers.
 
 import { getStore } from '@netlify/blobs';
+import { requireUser } from '../shared/auth/session.mjs';
+import { jsonError } from '../shared/http.mjs';
 
 const STORE_NAME = 'stockout-signals';
 
@@ -63,6 +65,13 @@ function validate(s) {
 export default async (req) => {
 	if (req.method === 'OPTIONS') {
 		return new Response(null, { status: 204, headers: CORS });
+	}
+
+	// Business data; a session is required, as everywhere else.
+	try {
+		await requireUser(req);
+	} catch (error) {
+		return jsonError(error, req);
 	}
 
 	if (req.method === 'GET') {

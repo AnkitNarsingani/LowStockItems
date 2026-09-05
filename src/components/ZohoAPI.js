@@ -1,28 +1,40 @@
 const ORG_ID = process.env.REACT_APP_ZOHO_ORG;
-const BASE_PROXY = `https://zoho-proxy.biz-laxmitrading.workers.dev/books/v3`;
 
-// Item calls once went straight to https://www.zohoapis.in/books/v3. Zoho sends
-// no Access-Control-Allow-Origin on those responses, so from the deployed
-// origin every one was blocked by CORS and the tables came up empty. The
-// Cloudflare Worker forwards the same requests and does send the header, so
-// item calls go through it like everything else.
+// Our own server, not Zoho and not the Cloudflare Worker that used to stand in
+// front of it. The function behind this path requires a session, attaches the
+// Zoho access token server-side and forces organization_id from server
+// configuration — so nothing here needs a credential, and there is none in the
+// browser to steal. The request shapes below are unchanged: the proxy forwards
+// /api/zoho/books/v3/<resource> straight through to Books.
+const BASE_PROXY = '/api/zoho/books/v3';
+
+// Item calls once went straight to https://www.zohoapis.in/books/v3 and were
+// blocked by CORS, because Zoho sends no Access-Control-Allow-Origin. Going
+// through our own origin removes that problem entirely.
 const BASE_ITEMS = BASE_PROXY;
-
-const getAccessToken = () => localStorage.getItem('accessToken');
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function fetchWithRetry(url, options, retries = 3) {
 	for (let i = 0; i < retries; i++) {
 		const res = await fetch(url, options);
+		if (res.status === 401) {
+			// The session ended mid-session. Retrying cannot help, and the JSON
+			// body is ours rather than Zoho's, so stop and let the app react.
+			window.dispatchEvent(new Event('lsi:signed-out'));
+			throw new Error('Your session has expired. Sign in again.');
+		}
 		if (res.status !== 429) return res;
 		await delay((i + 1) * 1000);
 	}
 	throw new Error('Max retries exceeded (429)');
 }
 
+// Kept as a function so the twenty-odd call sites below stay untouched. There
+// is deliberately nothing in it: authentication is the session cookie the
+// browser sends automatically, and the Zoho token is attached server-side.
 function authHeaders() {
-	return { Authorization: `Zoho-oauthtoken ${getAccessToken()}` };
+	return {};
 }
 
 // ─── STEP 1: fetch all low stock items (paginated) ───────────────────────────

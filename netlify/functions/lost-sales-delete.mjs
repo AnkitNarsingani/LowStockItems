@@ -1,8 +1,17 @@
 import { storeFor, json, preflight, keyFor } from './_lost-sales-shared.mjs';
+import { requireUser } from '../shared/auth/session.mjs';
+import { jsonError } from '../shared/http.mjs';
 
 // Backs the ACTIONS column on the lost-sales list.
 export default async (req) => {
 	if (req.method === 'OPTIONS') return preflight();
+
+	// Every lost-sale endpoint is business data; a session is required.
+	try {
+		await requireUser(req);
+	} catch (error) {
+		return jsonError(error, req);
+	}
 	if (req.method !== 'DELETE' && req.method !== 'POST') {
 		return json(405, { error: 'Method not allowed. Use DELETE.' });
 	}

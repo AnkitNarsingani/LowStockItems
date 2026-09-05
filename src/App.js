@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import ZohoItemTable from './components/ZohoItemTable';
@@ -6,193 +6,94 @@ import NewPOPage from './pages/NewPOPage';
 import LostSalesListPage from './pages/LostSalesListPage';
 import LostSaleFormPage from './pages/LostSaleFormPage';
 import ReorderSuggestionsPage from './pages/ReorderSuggestionsPage';
+import LoginPage from './pages/LoginPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
+import SettingsPage from './pages/SettingsPage';
+import { AuthProvider, useAuth } from './lib/auth';
 
-// === AUTH CONSTANTS ===
-const ZOHO_CLIENT_ID = process.env.REACT_APP_ZOHO_CLIENT_ID;
-const ZOHO_REDIRECT_URI = process.env.REACT_APP_ZOHO_REDIRECT_URI;
-const ZOHO_SCOPE = 'ZohoBooks.fullaccess.all';
-const ZOHO_AUTH_URL = 'https://accounts.zoho.in/oauth/v2/auth';
-const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+/**
+ * Authentication.
+ *
+ * This was Zoho's implicit grant: the browser was sent to Zoho, came back with
+ * an access token in the URL fragment, and kept it in localStorage — a
+ * full-access Zoho credential readable by any script on the page, with no
+ * application accounts and no way to revoke a single session.
+ *
+ * The app now has its own accounts. Signing in exchanges a password for a
+ * session in an httpOnly cookie, and the Zoho credential lives only on the
+ * server (netlify/shared/zoho/tokens.mjs).
+ */
 
-// === UTILITY FUNCTIONS ===
-const getZohoLoginUrl = (prompt = 'consent') => {
-	return `${ZOHO_AUTH_URL}?scope=${ZOHO_SCOPE}&client_id=${ZOHO_CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(
-		ZOHO_REDIRECT_URI,
-	)}&access_type=offline&prompt=${prompt}`;
-};
+function FullPageMessage({ title, children }) {
+	return (
+		<div className="min-h-screen flex items-center justify-center p-6">
+			<div className="w-full max-w-[420px] bg-surface border border-line rounded p-8 text-center">
+				<div className="text-[15px] font-black text-heading mb-1.5">{title}</div>
+				<p className="text-[13px] text-muted-2 m-0 leading-relaxed">{children}</p>
+			</div>
+		</div>
+	);
+}
 
-const isTokenExpired = () => {
-	const expiresAt = Number(localStorage.getItem('expiresAt'));
-	return !expiresAt || Date.now() > expiresAt;
-};
+function Protected() {
+	const { phase, signOut } = useAuth();
 
-const clearTokens = () => {
-	localStorage.removeItem('accessToken');
-	localStorage.removeItem('expiresAt');
-};
-
-// Export logout function for use in other files
-export const logout = () => {
-	clearTokens();
-	window.location.assign(ZOHO_REDIRECT_URI);
-};
-
-const storeTokens = (accessToken, expiresIn) => {
-	const expiresAt = Date.now() + Number(expiresIn) * 1000;
-	localStorage.setItem('accessToken', accessToken);
-	localStorage.setItem('expiresAt', expiresAt.toString());
-};
-
-// What the app does, said once on the only screen a new user sees before
-// anything is loaded.
-const LOGIN_POINTS = [
-	'See every item at or below its reorder point, grouped by vendor',
-	'Raise a draft purchase order from a selection in two clicks',
-	'Log the demand Zoho never sees, and let it move your reorder points',
-];
-
-function App() {
-	const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+	// ZohoAPI raises this when a proxied call comes back 401 — the session ended
+	// while the tab was open. Clearing it here shows the login screen instead of
+	// leaving failing requests against a dead session.
 	useEffect(() => {
-		// Handle OAuth redirect with access token
-		const handleOAuthRedirect = () => {
-			let hash = window.location.hash;
-			if (hash.startsWith('#/')) {
-				hash = '#' + hash.slice(2);
-			}
+		const onSignedOut = () => signOut();
+		window.addEventListener('lsi:signed-out', onSignedOut);
+		return () => window.removeEventListener('lsi:signed-out', onSignedOut);
+	}, [signOut]);
 
-			const hashParams = new URLSearchParams(hash.slice(1));
-			const accessToken = hashParams.get('access_token');
-			const expiresIn = hashParams.get('expires_in');
-
-			if (accessToken && expiresIn) {
-				storeTokens(accessToken, expiresIn);
-				setIsAuthenticated(true);
-				// Clean up URL
-				window.location.replace(
-					window.location.pathname + window.location.search,
-				);
-				return true;
-			}
-			return false;
-		};
-
-		// Check existing token validity
-		const checkExistingToken = () => {
-			const storedToken = localStorage.getItem('accessToken');
-
-			if (storedToken && !isTokenExpired()) {
-				setIsAuthenticated(true);
-			} else if (storedToken && isTokenExpired()) {
-				// Token expired, try silent refresh
-				window.location.assign(getZohoLoginUrl('none'));
-			}
-		};
-
-		// Set up token expiry monitoring
-		const setupTokenMonitoring = () => {
-			const interval = setInterval(() => {
-				if (isTokenExpired() && localStorage.getItem('accessToken')) {
-					window.location.assign(getZohoLoginUrl('none'));
-				}
-			}, TOKEN_CHECK_INTERVAL);
-
-			return () => clearInterval(interval);
-		};
-
-		// Execute initialization logic
-		const isRedirectHandled = handleOAuthRedirect();
-		if (!isRedirectHandled) {
-			checkExistingToken();
-		}
-
-		const cleanup = setupTokenMonitoring();
-		return cleanup;
-	}, []);
-
-	const handleLogin = () => {
-		window.location.assign(getZohoLoginUrl('consent'));
-	};
-
-
-	// Auth gating is unchanged: unauthenticated users get the Zoho login button
-	// on every route.
-	if (!isAuthenticated) {
+	if (phase === 'loading') {
 		return (
-			<div className="min-h-screen flex items-center justify-center p-6">
-				<div className="w-full max-w-[420px] bg-surface border border-line rounded shadow-float p-8 animate-fade-up">
-					<div className="flex items-center gap-3 mb-7">
-						<div className="w-11 h-11 rounded bg-brand flex items-center justify-center text-white font-black text-[20px]">
-							L
-						</div>
-						<div>
-							<div className="font-black text-[18px] text-heading tracking-[-.02em] leading-tight">
-								Low<span className="text-brand-600">Stock</span>Items
-							</div>
-							<div className="text-[12.5px] text-muted-2">
-								Purchasing, on top of Zoho Books
-							</div>
-						</div>
-					</div>
-
-					<ul className="list-none p-0 m-0 mb-7 flex flex-col gap-3">
-						{LOGIN_POINTS.map((point) => (
-							<li key={point} className="flex items-start gap-2.5">
-								<span className="w-[18px] h-[18px] rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0 mt-px">
-									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2f7be0" strokeWidth="3.4">
-										<path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-									</svg>
-								</span>
-								<span className="text-[13px] text-body-2 leading-[1.5]">
-									{point}
-								</span>
-							</li>
-						))}
-					</ul>
-
-					<button
-						onClick={handleLogin}
-						className="w-full h-11 rounded border-none bg-brand hover:bg-brand-600 text-white font-black text-[14px] cursor-pointer transition-all duration-200 ease-smooth flex items-center justify-center gap-2">
-						Continue with Zoho
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-							<path d="M5 12h14M13 6l6 6-6 6" />
-						</svg>
-					</button>
-
-					<p className="text-[11.5px] text-muted-2 text-center mt-4 mb-0 leading-relaxed">
-						You will be sent to Zoho to sign in. Nothing is stored here beyond
-						the session token.
-					</p>
-				</div>
+			<div className="min-h-screen flex items-center justify-center">
+				<span className="w-6 h-6 border-2 border-line-2 border-t-brand rounded-full animate-spin" />
 			</div>
 		);
 	}
 
-	// BrowserRouter, not HashRouter — the OAuth implicit grant already parses
-	// window.location.hash for the access token and a hash router would collide
-	// with it. Needs the SPA rewrite in netlify.toml to survive a refresh.
+	if (phase === 'error') {
+		return (
+			<FullPageMessage title="Cannot reach the server">
+				The app could not check your session. This usually means the database
+				or the server environment is not configured yet.
+			</FullPageMessage>
+		);
+	}
+
+	if (phase !== 'authenticated') return <LoginPage />;
+
 	return (
-		<BrowserRouter>
-			<Routes>
-				<Route element={<AppShell />}>
-					<Route path="/" element={<ZohoItemTable />} />
-					<Route path="/po/new" element={<NewPOPage />} />
-					<Route path="/lost-sales" element={<LostSalesListPage />} />
-					<Route path="/lost-sales/new" element={<LostSaleFormPage />} />
-					<Route
-						path="/lost-sales/:id/edit"
-						element={<LostSaleFormPage />}
-					/>
-					<Route
-						path="/reorder-suggestions"
-						element={<ReorderSuggestionsPage />}
-					/>
-					<Route path="*" element={<Navigate to="/" replace />} />
-				</Route>
-			</Routes>
-		</BrowserRouter>
+		<Routes>
+			<Route element={<AppShell />}>
+				<Route path="/" element={<ZohoItemTable />} />
+				<Route path="/po/new" element={<NewPOPage />} />
+				<Route path="/lost-sales" element={<LostSalesListPage />} />
+				<Route path="/lost-sales/new" element={<LostSaleFormPage />} />
+				<Route path="/lost-sales/:id/edit" element={<LostSaleFormPage />} />
+				<Route path="/reorder-suggestions" element={<ReorderSuggestionsPage />} />
+				<Route path="/settings" element={<SettingsPage />} />
+				<Route path="*" element={<Navigate to="/" replace />} />
+			</Route>
+		</Routes>
 	);
 }
 
-export default App;
+export default function App() {
+	// BrowserRouter, not HashRouter. Needs the SPA rewrite in netlify.toml to
+	// survive a refresh — and that rewrite must not swallow /api/*.
+	return (
+		<BrowserRouter>
+			<AuthProvider>
+				<Routes>
+					{/* Reachable without a session: it is how an invited user gets one. */}
+					<Route path="/accept-invite" element={<AcceptInvitePage />} />
+					<Route path="*" element={<Protected />} />
+				</Routes>
+			</AuthProvider>
+		</BrowserRouter>
+	);
+}

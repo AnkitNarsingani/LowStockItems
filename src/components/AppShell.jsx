@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { logout } from '../App';
+import { useAuth } from '../lib/auth';
 import {
 	subscribe as subscribeToRun,
 	getState as getRunState,
@@ -58,6 +58,7 @@ const NAV = [
 
 export default function AppShell() {
 	const { pathname } = useLocation();
+	const { user, signOut } = useAuth();
 
 	// A suggestion run continues while you are on another page, so the nav has
 	// to show it — otherwise minutes of work happen with no sign of it.
@@ -103,8 +104,33 @@ export default function AppShell() {
 
 				<div className="flex-1" />
 
+				{user && (
+					<span className="flex items-center gap-2 mr-1 min-w-0">
+						<span
+							className="w-[26px] h-[26px] rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-[11px] font-black flex-shrink-0"
+							title={user.email}>
+							{(user.displayName || user.email || '?').slice(0, 2).toUpperCase()}
+						</span>
+						<span className="text-[12.5px] font-bold text-body-2 truncate max-w-[150px]">
+							{user.displayName}
+						</span>
+					</span>
+				)}
+
+				{user?.role === 'administrator' && (
+					<NavLink
+						to="/settings"
+						className={`flex items-center h-8 px-3 rounded border text-[12.5px] font-bold no-underline hover:no-underline ${
+							pathname.startsWith('/settings')
+								? 'border-brand-200 bg-brand-50 text-brand-700'
+								: 'border-line-2 bg-surface text-body-3 hover:text-heading'
+						}`}>
+						Settings
+					</NavLink>
+				)}
+
 				<button
-					onClick={logout}
+					onClick={signOut}
 					className="group flex items-center gap-2 h-8 px-3 rounded border border-line-2 bg-surface text-body-3 font-bold text-[12.5px] cursor-pointer hover:border-danger-border hover:bg-danger-bg hover:text-danger">
 					<svg
 						width="15"
@@ -191,8 +217,8 @@ export default function AppShell() {
 							</span>
 						</div>
 						<p className="m-0 text-[11.5px] leading-[1.45] text-muted-2">
-							Stock, vendors and purchase orders read live. Lost sales are kept
-							here.
+							Stock, vendors and purchase orders read live through the server.
+							No Zoho credential reaches this browser.
 						</p>
 					</div>
 				</nav>
