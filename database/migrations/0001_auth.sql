@@ -17,7 +17,25 @@ DO $$ BEGIN
   CREATE TYPE user_status AS ENUM ('invited', 'active', 'disabled');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TABLE IF NOT EXISTS profiles (
+-- This account runs more than one Netlify app against Neon, and at least one
+-- other defines its own `profiles` table and `user_role` enum with different
+-- values. Sharing a database between them would silently merge two apps' user
+-- accounts. Catching a pre-existing, foreign `user_role` here turns that into
+-- a failed migration with an explanation, instead of a runtime error weeks
+-- later when someone is given a role the enum has never heard of.
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+     WHERE t.typname = 'user_role' AND e.enumlabel = 'buyer'
+  ) THEN
+    RAISE EXCEPTION
+      'A user_role type already exists here without a ''buyer'' value, so this database belongs to another application. Give LowStockItems its own database.';
+  END IF;
+END $$;
+
+CREATE TABLE profiles (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Stored verbatim; uniqueness and lookups go through lower(email), so the
@@ -62,7 +80,7 @@ CREATE INDEX IF NOT EXISTS profiles_reset_token_idx
 -- environment, so a database dump alone does not yield a usable Zoho
 -- credential. It is never returned by any endpoint.
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS zoho_connection (
+CREATE TABLE zoho_connection (
   id                       SMALLINT PRIMARY KEY DEFAULT 1,
   refresh_token_encrypted  TEXT,
   refresh_token_updated_at TIMESTAMPTZ,
