@@ -1,10 +1,13 @@
 [build]
-  # Migrations are NOT run here yet. Netlify does not expose build logs over
-  # its API, so a migration failure during the build is invisible from outside
-  # — and it takes the whole deploy with it, including the health endpoint that
-  # would have explained why. Get /api/health green first, then move the
-  # migration back in front of the build.
-  command = "npm run build"
+  # Migrations run before the bundle, so the schema can never lag the functions
+  # that depend on it. They are recorded in schema_migrations and applied once,
+  # so repeat builds are no-ops, and a failure fails the build rather than
+  # deploying against a schema that did not apply.
+  #
+  # This runs here because DATABASE_URL is marked secret and Netlify withholds
+  # secret values from `netlify dev` — the build is the only place the real
+  # value exists.
+  command = "node database/migrations/run.mjs && npm run build"
   publish = "build"
   functions = "netlify/functions"
 
