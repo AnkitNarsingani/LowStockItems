@@ -13,6 +13,7 @@
  */
 
 import { connectionInfo, queryOne } from '../shared/db.mjs';
+import { resolveCredentials } from '../shared/zoho/tokens.mjs';
 
 const present = (name) => Boolean(process.env[name] && process.env[name].length > 0);
 
@@ -28,6 +29,7 @@ export default async () => {
 		ZOHO_CLIENT_ID: present('ZOHO_CLIENT_ID'),
 		ZOHO_CLIENT_SECRET: present('ZOHO_CLIENT_SECRET'),
 		ZOHO_ORGANIZATION_ID: present('ZOHO_ORGANIZATION_ID'),
+		ZOHO_REFRESH_TOKEN: present('ZOHO_REFRESH_TOKEN'),
 	};
 
 	const database = {
@@ -62,11 +64,30 @@ export default async () => {
 		database.errorCode = error?.code ?? error?.pgCode ?? 'UNKNOWN';
 	}
 
+	// Configuration only — deliberately no call to Zoho. An unauthenticated
+	// endpoint that could trigger a token exchange would let a stranger burn
+	// through Zoho's refresh rate limit.
+	let zoho = { resolved: false, source: null, apiDomain: null };
+	try {
+		const credentials = await resolveCredentials();
+		zoho = {
+			resolved: credentials !== null,
+			source: credentials === null
+				? null
+				: process.env.ZOHO_REFRESH_TOKEN
+					? 'environment'
+					: 'in-app',
+			apiDomain: credentials?.apiDomain ?? null,
+		};
+	} catch {
+		// A decryption failure on the stored token: leave resolved false.
+	}
+
 	const ready =
 		env.AUTH_JWT_SECRET_long_enough && database.reachable && database.schemaReady;
 
 	return Response.json(
-		{ ok: true, data: { ready, env, database } },
+		{ ok: true, data: { ready, env, database, zoho } },
 		{ status: 200, headers: { 'Cache-Control': 'no-store' } },
 	);
 };
