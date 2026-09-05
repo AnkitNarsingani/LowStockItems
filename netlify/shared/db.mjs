@@ -31,6 +31,31 @@ function connectionString() {
 const isLocal = (url) => /localhost|127\.0\.0\.1/.test(url);
 
 /**
+ * Which connection string is in play, for diagnostics — never the string
+ * itself. DATABASE_URL deliberately wins over NETLIFY_DATABASE_URL so a
+ * developer can point at their own Postgres, but that precedence also means a
+ * stale or placeholder value silently beats a perfectly good Netlify DB. That
+ * is a hard failure to see from the outside, so /api/health reports it.
+ */
+export function connectionInfo() {
+	const source = process.env.DATABASE_URL
+		? 'DATABASE_URL'
+		: process.env.NETLIFY_DATABASE_URL
+			? 'NETLIFY_DATABASE_URL'
+			: process.env.NETLIFY_DATABASE_URL_UNPOOLED
+				? 'NETLIFY_DATABASE_URL_UNPOOLED'
+				: null;
+
+	const url = source ? process.env[source] : '';
+	return {
+		source,
+		// A connection pointing at localhost cannot work from a Netlify
+		// function, and is the signature of a pasted example value.
+		pointsAtLocalhost: Boolean(url) && isLocal(url),
+	};
+}
+
+/**
  * One module-scoped pool, reused across warm invocations. `max` is small on
  * purpose: serverless scales by adding instances, so a large per-instance pool
  * exhausts the database's connection limit.

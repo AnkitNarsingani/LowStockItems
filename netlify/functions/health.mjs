@@ -12,7 +12,7 @@
  * safe to leave enabled.
  */
 
-import { queryOne } from '../shared/db.mjs';
+import { connectionInfo, queryOne } from '../shared/db.mjs';
 
 const present = (name) => Boolean(process.env[name] && process.env[name].length > 0);
 
@@ -31,6 +31,7 @@ export default async () => {
 	};
 
 	const database = {
+		...connectionInfo(),
 		reachable: false,
 		schemaReady: false,
 		profileCount: null,
