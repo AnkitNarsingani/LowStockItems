@@ -1,14 +1,10 @@
 [build]
-  # Migrations run before the bundle is built, so the schema can never be
-  # behind the functions that depend on it. They are tracked in
-  # schema_migrations and applied once, so repeat builds are no-ops.
-  #
-  # It runs here rather than from a developer's machine because DATABASE_URL is
-  # marked secret, and Netlify deliberately withholds secret values from
-  # `netlify dev` — the build is the only place the real value exists. A failed
-  # migration fails the build, which is what we want: no deploy against a
-  # schema that did not apply.
-  command = "node database/migrations/run.mjs && npm run build"
+  # Migrations are NOT run here yet. Netlify does not expose build logs over
+  # its API, so a migration failure during the build is invisible from outside
+  # — and it takes the whole deploy with it, including the health endpoint that
+  # would have explained why. Get /api/health green first, then move the
+  # migration back in front of the build.
+  command = "npm run build"
   publish = "build"
   functions = "netlify/functions"
 
