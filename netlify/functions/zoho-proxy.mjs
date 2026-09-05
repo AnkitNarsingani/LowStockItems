@@ -22,10 +22,9 @@ import { requireUser } from '../shared/auth/session.mjs';
 import { AppError } from '../shared/errors.mjs';
 import { jsonError, preflight } from '../shared/http.mjs';
 import {
-	apiDomain,
 	getAccessToken,
 	invalidateAccessToken,
-	organizationId,
+	requireResolvedCredentials,
 } from '../shared/zoho/tokens.mjs';
 
 const PREFIX = '/api/zoho/books/v3/';
@@ -47,14 +46,19 @@ const STRIP = new Set([
 	'x-nf-client-connection-ip',
 ]);
 
-async function callZoho(request, targetUrl, body) {
+async function callZoho(request, buildUrl, body, options) {
+	const { accessToken, apiDomain } = await getAccessToken(options);
+
 	const headers = new Headers();
 	for (const [name, value] of request.headers) {
 		if (!STRIP.has(name.toLowerCase())) headers.set(name, value);
 	}
-	headers.set('Authorization', `Zoho-oauthtoken ${await getAccessToken()}`);
+	headers.set('Authorization', `Zoho-oauthtoken ${accessToken}`);
 
-	return fetch(targetUrl, {
+	// The domain comes from the token, not from configuration: Zoho reports
+	// the data centre the account actually lives in, and a token is only valid
+	// against that one.
+	return fetch(buildUrl(apiDomain), {
 		method: request.method,
 		headers,
 		body,
@@ -80,13 +84,12 @@ export default async (request) => {
 			throw new AppError('NOT_FOUND', 'Unsupported Zoho path.', 404);
 		}
 
+		const { organizationId } = await requireResolvedCredentials();
 		const params = new URLSearchParams(url.search);
-		const org = organizationId();
-		if (org) params.set('organization_id', org);
+		params.set('organization_id', organizationId);
 
-		const target = `${apiDomain()}/books/v3/${resource}${
-			params.toString() ? `?${params}` : ''
-		}`;
+		const buildUrl = (apiDomain) =>
+			`${apiDomain}/books/v3/${resource}${params.toString() ? `?${params}` : ''}`;
 
 		// Read the body once: a retry cannot re-read a consumed stream.
 		const body =
@@ -94,14 +97,14 @@ export default async (request) => {
 				? undefined
 				: await request.text();
 
-		let response = await callZoho(request, target, body);
+		let response = await callZoho(request, buildUrl, body);
 
 		// A 401 means the cached access token died early — Zoho can revoke one
-		// before its stated expiry. Refresh once and retry; a second 401 is a
-		// real credential problem and is passed through.
+		// before its stated expiry. Force one refresh and retry; a second 401
+		// is a real credential problem and is passed through.
 		if (response.status === 401) {
 			invalidateAccessToken();
-			response = await callZoho(request, target, body);
+			response = await callZoho(request, buildUrl, body, { forceRefresh: true });
 		}
 
 		const payload = await response.text();

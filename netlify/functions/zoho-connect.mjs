@@ -127,11 +127,17 @@ const callback = async (request) => {
 	if (!code) return failure('no-code');
 
 	try {
-		const { refreshToken } = await exchangeAuthorizationCode({
+		const exchanged = await exchangeAuthorizationCode({
 			code,
 			redirectUri: redirectUri(),
 		});
-		await storeRefreshToken(refreshToken, state.a);
+		await storeRefreshToken({
+			refreshToken: exchanged.refreshToken,
+			organizationId: process.env.ZOHO_ORGANIZATION_ID || null,
+			accountsDomain: exchanged.accountsDomain,
+			apiDomain: exchanged.apiDomain,
+			connectedBy: state.a,
+		});
 	} catch (error) {
 		return failure(error?.code ?? 'exchange-failed');
 	}
